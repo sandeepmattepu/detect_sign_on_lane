@@ -12,6 +12,7 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/objdetect.hpp"
+#include "opencv2/ml.hpp"
 
 namespace otto_car
 {
@@ -55,16 +56,18 @@ namespace otto_car
 		class DetectSignsOnLane
 		{
 			private:
-				std::string locOfDatFile;
 
 				bool continueDetection = false;
 
 				ros::ServiceServer setDetectionFlagService;
+				ros::Publisher debugImageResultPublisher;
 
 				std::string rosImageToCVEncoding = "bgr8";
 
 				cv::HOGDescriptor hog;
 				cv::HOGDescriptor constructHogObject();
+
+				cv::Ptr<cv::ml::SVM> modelPtr;
 
 				// Variables for detectSignsFromRawImage function
 				cv::Mat imageFromRaw;
@@ -102,7 +105,13 @@ namespace otto_car
 														cv::Size &cropRectForSize);
 
 				float findMinOrMaxInPoints(cv::Point2f points[], AxisType axis, BoundaryType boundary);
-				void predictSign();
+
+				// Variables for predictSign function
+				std::vector<float> descriptors;
+				float predictionNumber;
+				std::string labelString;
+				sensor_msgs::Image debugImage;
+				void predictSign(cv::Mat &image, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect);
 
 			public:
 				DetectSignsOnLane(ros::NodeHandle &nh, std::string locationOfDatFile, std::string nameOfRawImageTopic,

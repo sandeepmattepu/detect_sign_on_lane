@@ -8,13 +8,15 @@ namespace otto_car
 	DetectSignsOnLane::DetectSignsOnLane(ros::NodeHandle &nh, std::string locationOfDatFile, std::string nameOfRawImageTopic, 
 											std::string setDetectionFlagServiceName)
 	{
-		locOfDatFile = locationOfDatFile;
 		std::string fullServiceName = ros::this_node::getName() + setDetectionFlagServiceName;
 		this->setDetectionFlagService = nh.advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
 		
 		nh.subscribe(nameOfRawImageTopic, 40, &DetectSignsOnLane::detectSignsFromRawImage, this);
+		std::string fullDebugResultName = ros::this_node::getName() + "/debug_result_image";
+		nh.advertise<sensor_msgs::Image>(fullDebugResultName, 50);
 
 		this->constructHogObject();
+		modelPtr = cv::ml::SVM::load(locationOfDatFile);
 	}
 
 	bool DetectSignsOnLane::setDetectionFlagServiceCallBack(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)
@@ -52,6 +54,7 @@ namespace otto_car
 				if(isContourASign)
 				{
 					preprocessBeforeSignDetection(rotatedRect, imageFromRaw, croppedImage, cropRect);
+					predictSign(croppedImage, contours[i], rotatedRect);
 				}
 			}
 		}
@@ -160,9 +163,43 @@ namespace otto_car
 		cv::threshold(result, result, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 	}
 
-	void DetectSignsOnLane::predictSign()
+	void DetectSignsOnLane::predictSign(cv::Mat &image, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect)
 	{
-		
+		hog.compute(image, descriptors);
+		predictionNumber = modelPtr->predict(descriptors);
+
+		if(predictionNumber >=0 && predictionNumber < 14)
+		{
+			cv::drawContours(image, contour, 0, cv::Scalar(0,0,225), 2);
+		}
+
+		if(predictionNumber >= 0 && predictionNumber < 10)
+		{
+			cv::putText(image, std::to_string(predictionNumber), contourRect.center, cv::FONT_HERSHEY_DUPLEX, 0.9, 
+							CV_RGB(0, 255, 0), 1);
+		}
+		else if(predictionNumber >= 10 && predictionNumber < 14)
+		{
+			if(predictionNumber == 11)
+			{
+				labelString = "Turn left";
+			}
+			else if(predictionNumber == 12)
+			{
+				labelString = "Turn right";
+			}
+			else
+			{
+				labelString = "Speed limit ends";
+			}
+			cv::putText(image, labelString, contourRect.center, cv::FONT_HERSHEY_DUPLEX, 0.9, 
+							CV_RGB(0, 255, 0), 1);
+		}
+		descriptors.clear();
+		std::shared_ptr<cv_bridge::CvImage> tempCVImage(new cv_bridge::CvImage());
+		tempCVImage->image = image;
+		tempCVImage->toImageMsg(debugImage);
+		debugImageResultPublisher.publish(debugImage);
 	}
 	
 	}
