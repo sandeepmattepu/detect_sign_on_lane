@@ -147,6 +147,8 @@ add_executable(detect_markings_on_lane src/DetectSignsMain.cpp src/DetectSignsOn
 ## Specify libraries to link a library or executable target against
 target_link_libraries(detect_markings_on_lane ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
+file(COPY model/svm_data.dat DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+
 #############
 ## Install ##
 #############

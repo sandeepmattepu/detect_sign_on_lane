@@ -9,11 +9,11 @@ namespace otto_car
 											std::string setDetectionFlagServiceName)
 	{
 		std::string fullServiceName = ros::this_node::getName() + setDetectionFlagServiceName;
-		this->setDetectionFlagService = nh.advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
+		setDetectionFlagService = nh.advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
 		
 		nh.subscribe(nameOfRawImageTopic, 40, &DetectSignsOnLane::detectSignsFromRawImage, this);
 		std::string fullDebugResultName = ros::this_node::getName() + "/debug_result_image";
-		nh.advertise<sensor_msgs::Image>(fullDebugResultName, 50);
+		debugImageResultPublisher = nh.advertise<sensor_msgs::Image>(fullDebugResultName, 50);
 
 		this->constructHogObject();
 		modelPtr = cv::ml::SVM::load(locationOfDatFile);
@@ -56,11 +56,16 @@ namespace otto_car
 					preprocessBeforeSignDetection(rotatedRect, imageFromRaw, croppedImage, cropRect);
 					predictSign(croppedImage, contours[i], rotatedRect);
 				}
+				std::shared_ptr<cv_bridge::CvImage> tempCVImage(new cv_bridge::CvImage());
+				tempCVImage->image = croppedImage;
+				tempCVImage->encoding = "bgr8";
+				tempCVImage->toImageMsg(debugImage);
+				debugImageResultPublisher.publish(debugImage);
 			}
 		}
 	}
 
-	cv::HOGDescriptor DetectSignsOnLane::constructHogObject()
+	void DetectSignsOnLane::constructHogObject()
 	{
 		cv::Size winSize(20,20);
         cv::Size blockSize(8,8);
@@ -74,7 +79,7 @@ namespace otto_car
         bool gammaCorrection = true;
         int nlevels = 64;
         bool signedGradient = true;
-        this->hog = cv::HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins, derivAperture, winSigma, histogramNormType,
+        hog = new cv::HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins, derivAperture, winSigma, histogramNormType,
         				L2HysThreshold, gammaCorrection, nlevels, signedGradient);
 	}
 
@@ -165,7 +170,7 @@ namespace otto_car
 
 	void DetectSignsOnLane::predictSign(cv::Mat &image, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect)
 	{
-		hog.compute(image, descriptors);
+		hog->compute(image, descriptors);
 		predictionNumber = modelPtr->predict(descriptors);
 
 		if(predictionNumber >=0 && predictionNumber < 14)
@@ -196,10 +201,6 @@ namespace otto_car
 							CV_RGB(0, 255, 0), 1);
 		}
 		descriptors.clear();
-		std::shared_ptr<cv_bridge::CvImage> tempCVImage(new cv_bridge::CvImage());
-		tempCVImage->image = image;
-		tempCVImage->toImageMsg(debugImage);
-		debugImageResultPublisher.publish(debugImage);
 	}
 	
 	}

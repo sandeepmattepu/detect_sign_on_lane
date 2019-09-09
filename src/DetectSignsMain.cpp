@@ -5,16 +5,17 @@
 using namespace otto_car::lane_markings;
 
 std::string nameOfLaneImage = "/perception/lane/debug/topview";
+std::string locationOfSvmDat;
+
+int parseCommandLineArguments(int argc, char** argv);
 
 int main(int argc, char** argv)
 {
-	if(argc < 2)
+	if(parseCommandLineArguments(argc, argv) == 1)
 	{
-		std::cout << "Pass the location of the SVM DAT file" << std::endl;
 		return 1;
 	}
 
-	std::string locationOfSvmDat = argv[1];
 	ros::init(argc, argv, "detect_signs_on_lane");
 	ros::NodeHandle nh;
 	ROS_INFO("detect_signs_on_lane node started");
@@ -25,4 +26,22 @@ int main(int argc, char** argv)
 	ros::spin();
 
 	return 0;
+}
+
+int parseCommandLineArguments(int argc, char** argv)
+{
+	for(int i = 0; i < argc; i++)
+	{
+		std::string argumentValue = std::string(argv[i]);
+		if(argumentValue == "--model" || argumentValue == "-m")
+		{
+			if( i + 1 < argc)
+			{
+				locationOfSvmDat = argv[i+1];
+				return 0;
+			}
+		}
+	}
+	std::cout << "Please provide location of SVM model file" << std::endl;
+	return 1;
 }

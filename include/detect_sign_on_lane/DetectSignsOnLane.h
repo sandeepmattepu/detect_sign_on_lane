@@ -64,8 +64,8 @@ namespace otto_car
 
 				std::string rosImageToCVEncoding = "bgr8";
 
-				cv::HOGDescriptor hog;
-				cv::HOGDescriptor constructHogObject();
+				cv::HOGDescriptor *hog;
+				void constructHogObject();
 
 				cv::Ptr<cv::ml::SVM> modelPtr;
 
@@ -80,6 +80,7 @@ namespace otto_car
     			cv::Mat boxPts;
     			cv::Size cropRect;
 				cv::Mat croppedImage;
+				sensor_msgs::Image debugImage;
 
     			// Variables for filterContorsForSigns function
     			cv::Size2f sizeOfRect;
@@ -110,7 +111,6 @@ namespace otto_car
 				std::vector<float> descriptors;
 				float predictionNumber;
 				std::string labelString;
-				sensor_msgs::Image debugImage;
 				void predictSign(cv::Mat &image, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect);
 
 			public:
