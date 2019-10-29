@@ -3,13 +3,13 @@ project(detect_sign_on_lane)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
-			 OpenCV REQUIRED
   			 roscpp
   			 std_msgs
   			 std_srvs
   			 cv_bridge
   			 sensor_msgs
   			 )
+find_package(OpenCV 3 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
