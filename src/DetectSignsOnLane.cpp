@@ -8,15 +8,20 @@ namespace otto_car
 	DetectSignsOnLane::DetectSignsOnLane(ros::NodeHandle &nh, std::string locationOfDatFile, std::string nameOfRawImageTopic, 
 											std::string setDetectionFlagServiceName)
 	{
-		std::string fullServiceName = ros::this_node::getName() + setDetectionFlagServiceName;
-		setDetectionFlagService = nh.advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
-		
-		nh.subscribe(nameOfRawImageTopic, 40, &DetectSignsOnLane::detectSignsFromRawImage, this);
-		std::string fullDebugResultName = ros::this_node::getName() + "/debug_result_image";
-		debugImageResultPublisher = nh.advertise<sensor_msgs::Image>(fullDebugResultName, 50);
+		fullServiceName = ros::this_node::getName() + setDetectionFlagServiceName;
+		nameOfInputImageTopic = nameOfRawImageTopic;
+		locationOfDataFile = locationOfDatFile;
+		nodeHandle = std::shared_ptr<ros::NodeHandle>(&nh);
+	}
 
-		this->constructHogObject();
-		modelPtr = cv::ml::SVM::load(locationOfDatFile);
+	void DetectSignsOnLane::init()
+	{
+		setDetectionFlagService = nodeHandle->advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
+		subscriber = nodeHandle->subscribe(nameOfInputImageTopic, 40, &DetectSignsOnLane::detectSignsFromRawImage, this);
+		std::string fullDebugResultName = ros::this_node::getName() + "/debug_result_image";
+		debugImageResultPublisher = nodeHandle->advertise<sensor_msgs::Image>(fullDebugResultName, 50);
+		constructHogObject();
+		modelPtr = cv::ml::SVM::load(locationOfDataFile);
 	}
 
 	bool DetectSignsOnLane::setDetectionFlagServiceCallBack(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res)

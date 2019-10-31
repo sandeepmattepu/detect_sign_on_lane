@@ -58,7 +58,12 @@ namespace otto_car
 			private:
 
 				bool continueDetection = false;
+				std::string fullServiceName;
+				std::string nameOfInputImageTopic;
+				std::string locationOfDataFile;
+				std::shared_ptr<ros::NodeHandle> nodeHandle;
 
+				ros::Subscriber subscriber;
 				ros::ServiceServer setDetectionFlagService;
 				ros::Publisher debugImageResultPublisher;
 
@@ -118,6 +123,7 @@ namespace otto_car
 										std::string setDetectionFlagServiceName);
 				bool setDetectionFlagServiceCallBack(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
 				void detectSignsFromRawImage(const sensor_msgs::Image &image);
+				void init();
 		};
 	}
 }

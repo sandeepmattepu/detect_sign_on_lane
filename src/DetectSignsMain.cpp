@@ -23,8 +23,11 @@ int main(int argc, char** argv)
 	std::string setDetectionFlagServiceName = "/set_sign_detection_on_lane_flag";
 	std::unique_ptr<DetectSignsOnLane> detection(new DetectSignsOnLane(nh, locationOfSvmDat, nameOfLaneImage, 
 													setDetectionFlagServiceName));
-	ros::spin();
-
+	detection->init();
+	while(ros::ok())
+	{
+		ros::spinOnce();
+	}
 	return 0;
 }
 
