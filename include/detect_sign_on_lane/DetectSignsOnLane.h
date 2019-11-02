@@ -78,7 +78,7 @@ namespace otto_car
 				cv::Mat imageFromRaw;
 				cv::Mat greyImage;
 				cv::Mat thresholdImage;
-				std::vector<std::vector<cv::Point> > contours;
+				std::vector<std::vector<cv::Point>> contours;
     			std::vector<cv::Vec4i> hierarchy;
     			cv::RotatedRect rotatedRect;
     			bool isContourASign = false;
@@ -86,6 +86,7 @@ namespace otto_car
     			cv::Size cropRect;
 				cv::Mat croppedImage;
 				sensor_msgs::Image debugImage;
+				std::shared_ptr<cv_bridge::CvImage> tempCVImage;
 
     			// Variables for filterContorsForSigns function
     			cv::Size2f sizeOfRect;
@@ -110,9 +111,10 @@ namespace otto_car
 				void preprocessBeforeSignDetection(cv::RotatedRect &contourRect, cv::Mat &image, cv::Mat &result, 
 														cv::Size &cropRectForSize);
 
-				float findMinOrMaxInPoints(cv::Point2f points[], AxisType axis, BoundaryType boundary);
+				float findMinOrMaxInPoints(cv::Point2f points[], int sizeOfArray, AxisType axis, BoundaryType boundary);
 
 				// Variables for predictSign function
+				std::vector<std::vector<cv::Point>> contoursToDraw;
 				std::vector<float> descriptors;
 				float predictionNumber;
 				std::string labelString;

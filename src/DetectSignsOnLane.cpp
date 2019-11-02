@@ -12,6 +12,7 @@ namespace otto_car
 		nameOfInputImageTopic = nameOfRawImageTopic;
 		locationOfDataFile = locationOfDatFile;
 		nodeHandle = std::shared_ptr<ros::NodeHandle>(&nh);
+		tempCVImage = std::make_shared<cv_bridge::CvImage>();
 	}
 
 	void DetectSignsOnLane::init()
@@ -44,10 +45,11 @@ namespace otto_car
 
 	void DetectSignsOnLane::detectSignsFromRawImage(const sensor_msgs::Image &image)
 	{
-		if(continueDetection)
-		{
+		//if(continueDetection)
+		//{
 			cv_bridge::CvImagePtr imagePtr = cv_bridge::toCvCopy(image, rosImageToCVEncoding);
 			imageFromRaw = imagePtr->image.clone();
+			croppedImage = imageFromRaw.clone();
 			cv::cvtColor(imageFromRaw, greyImage, CV_BGR2GRAY);
 			cv::threshold(greyImage, thresholdImage, 90, 255, cv::THRESH_BINARY_INV);
 
@@ -61,13 +63,13 @@ namespace otto_car
 					preprocessBeforeSignDetection(rotatedRect, imageFromRaw, croppedImage, cropRect);
 					predictSign(croppedImage, contours[i], rotatedRect);
 				}
-				std::shared_ptr<cv_bridge::CvImage> tempCVImage(new cv_bridge::CvImage());
-				tempCVImage->image = croppedImage;
-				tempCVImage->encoding = "bgr8";
-				tempCVImage->toImageMsg(debugImage);
-				debugImageResultPublisher.publish(debugImage);
 			}
-		}
+		//}
+			
+		tempCVImage->image = croppedImage;
+		tempCVImage->encoding = "bgr8";
+		tempCVImage->toImageMsg(debugImage);
+		debugImageResultPublisher.publish(debugImage);
 	}
 
 	void DetectSignsOnLane::constructHogObject()
@@ -126,10 +128,9 @@ namespace otto_car
 		return false;
 	}
 
-	float DetectSignsOnLane::findMinOrMaxInPoints(cv::Point2f points[], AxisType axis, BoundaryType boundary)
+	float DetectSignsOnLane::findMinOrMaxInPoints(cv::Point2f points[], int sizeOfArray, AxisType axis, BoundaryType boundary)
 	{
 		float result = 0;
-		int sizeOfArray = *(&points + 1) - points;
 		for(int i = 0; i < sizeOfArray; i++)
 		{
 			if(i == 0)
@@ -150,7 +151,6 @@ namespace otto_car
 				}
 			}
 		}
-
 		return result;
 	}
 
@@ -158,10 +158,13 @@ namespace otto_car
 															 cv::Size &cropRectForSize)
 	{
 		contourRect.points(pointsOfRectCorners);
-		minX = findMinOrMaxInPoints(pointsOfRectCorners, AxisType::X, BoundaryType::MIN);
-		maxX = findMinOrMaxInPoints(pointsOfRectCorners, AxisType::X, BoundaryType::MAX);
-		minY = findMinOrMaxInPoints(pointsOfRectCorners, AxisType::Y, BoundaryType::MIN);
-		maxY = findMinOrMaxInPoints(pointsOfRectCorners, AxisType::Y, BoundaryType::MAX);
+		int sizeOfArray = (sizeof(pointsOfRectCorners)/sizeof(*pointsOfRectCorners));
+		minX = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::X, BoundaryType::MIN);
+		maxX = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::X, BoundaryType::MAX);
+		minY = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::Y, BoundaryType::MIN);
+		maxY = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::Y, BoundaryType::MAX);
+		int width = (multi * (maxX - minX));
+		int height = (multi * (maxY - minY));
 		size = cv::Size(multi * (maxX - minX), multi * (maxY - minY));
 		rotationMatrix2D = cv::getRotationMatrix2D(cv::Point2f(size.width/2, size.height/2), contourRect.angle, 1.0);
 		cv::getRectSubPix(image, size, contourRect.center, result);
@@ -175,12 +178,14 @@ namespace otto_car
 
 	void DetectSignsOnLane::predictSign(cv::Mat &image, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect)
 	{
+		contoursToDraw.clear();
+		contoursToDraw.push_back(contour);
 		hog->compute(image, descriptors);
 		predictionNumber = modelPtr->predict(descriptors);
 
 		if(predictionNumber >=0 && predictionNumber < 14)
 		{
-			cv::drawContours(image, contour, 0, cv::Scalar(0,0,225), 2);
+			cv::drawContours(image, contoursToDraw, 0, cv::Scalar(0,0,225), 2);
 		}
 
 		if(predictionNumber >= 0 && predictionNumber < 10)
