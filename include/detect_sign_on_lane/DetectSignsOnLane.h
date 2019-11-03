@@ -19,34 +19,6 @@ namespace otto_car
 	namespace lane_markings
 	{
 
-		/* The following constrain values are obtained by testing. If you alter the camera configuration(position, angle, etc..)
-   		change following values accordingly through testing*/
-		#define NUMBER_SIGN_RECT_MIN_WIDTH 15
-		#define NUMBER_SIGN_RECT_MAX_WIDTH 25
-		#define NUMBER_SIGN_RECT_MIN_HEIGHT 110
-		#define NUMBER_SIGN_RECT_MAX_HEIGHT 120
-
-		#define ARROW_SIGN_RECT_MIN_WIDTH 16
-		#define ARROW_SIGN_RECT_MAX_WIDTH 20
-		#define ARROW_SIGN_RECT_MIN_HEIGHT 125
-		#define ARROW_SIGN_RECT_MAX_HEIGHT 137
-
-		#define SPEEDEND_SIGN_RECT_MIN_WIDTH 40
-		#define SPEEDEND_SIGN_RECT_MAX_WIDTH 58
-		#define SPEEDEND_SIGN_RECT_MIN_HEIGHT 130
-		#define SPEEDEND_SIGN_RECT_MAX_HEIGHT 145
-
-		#define SPEEDEND_CROP_RECT_WIDTH 65
-		#define SPEEDEND_CROP_RECT_HEIGHT 145
-		#define OTHERSIGN_CROP_RECT_WIDTH 30
-		#define OTHERSIGN_CROP_RECT_HEIGHT 120
-
-		#define RESIZE_WIDTH 20
-		#define RESIZE_HEIGHT 20
-
-		#define BLUR_IMAGE_WIDTH 1
-		#define BLUR_IMAGE_HEIGHT 1
-
 		enum AxisType { X, Y};
 		enum BoundaryType { MIN, MAX};
 
@@ -56,7 +28,34 @@ namespace otto_car
 		class DetectSignsOnLane
 		{
 			private:
+				/* The following constrain values are obtained by testing. If you alter the camera configuration(position, 
+				angle, etc..) change following values accordingly through testing*/
+				const float NUMBER_SIGN_RECT_MIN_WIDTH = 15;
+				const float NUMBER_SIGN_RECT_MAX_WIDTH = 25;
+				const float NUMBER_SIGN_RECT_MIN_HEIGHT = 110;
+				const float NUMBER_SIGN_RECT_MAX_HEIGHT = 120;
 
+				const float ARROW_SIGN_RECT_MIN_WIDTH = 16;
+				const float ARROW_SIGN_RECT_MAX_WIDTH = 20;
+				const float ARROW_SIGN_RECT_MIN_HEIGHT = 125;
+				const float ARROW_SIGN_RECT_MAX_HEIGHT = 137;
+
+				const float SPEEDEND_SIGN_RECT_MIN_WIDTH = 40;
+				const float SPEEDEND_SIGN_RECT_MAX_WIDTH = 58;
+				const float SPEEDEND_SIGN_RECT_MIN_HEIGHT = 130;
+				const float SPEEDEND_SIGN_RECT_MAX_HEIGHT = 145;
+
+				const float SPEEDEND_CROP_RECT_WIDTH = 65;
+				const float SPEEDEND_CROP_RECT_HEIGHT = 145;
+				const float OTHERSIGN_CROP_RECT_WIDTH = 30;
+				const float OTHERSIGN_CROP_RECT_HEIGHT = 120;
+
+				const float RESIZE_WIDTH = 20;
+				const float RESIZE_HEIGHT = 20;
+
+				const float BLUR_IMAGE_WIDTH = 1;
+				const float BLUR_IMAGE_HEIGHT = 1;
+				
 				bool continueDetection = false;
 				std::string fullServiceName;
 				std::string nameOfInputImageTopic;
