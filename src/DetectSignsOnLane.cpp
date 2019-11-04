@@ -61,12 +61,12 @@ namespace otto_car
 				if(isContourASign)
 				{
 					preprocessBeforeSignDetection(rotatedRect, imageFromRaw, croppedImage, cropRect);
-					predictSign(croppedImage, contours[i], rotatedRect);
+					predictSign(imageFromRaw, croppedImage, contours[i], rotatedRect);
 				}
 			}
 		//}
 			
-		tempCVImage->image = croppedImage;
+		tempCVImage->image = imageFromRaw;
 		tempCVImage->encoding = "bgr8";
 		tempCVImage->toImageMsg(debugImage);
 		debugImageResultPublisher.publish(debugImage);
@@ -99,6 +99,8 @@ namespace otto_car
 
 		if(widthOfRect > heightOfRect)
 		{
+			widthOfRect = sizeOfRect.height;
+			heightOfRect = sizeOfRect.width;
 			angleOfRect += 90;
 		}
 
@@ -176,14 +178,14 @@ namespace otto_car
 		cv::threshold(result, result, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 	}
 
-	void DetectSignsOnLane::predictSign(cv::Mat &image, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect)
+	void DetectSignsOnLane::predictSign(cv::Mat &image, cv::Mat &croppedImage, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect)
 	{
 		contoursToDraw.clear();
 		contoursToDraw.push_back(contour);
-		hog->compute(image, descriptors);
+		hog->compute(croppedImage, descriptors);
 		predictionNumber = modelPtr->predict(descriptors);
 
-		if(predictionNumber >=0 && predictionNumber < 14)
+		if(predictionNumber >=0 && predictionNumber < 13)
 		{
 			cv::drawContours(image, contoursToDraw, 0, cv::Scalar(0,0,225), 2);
 		}
@@ -193,7 +195,7 @@ namespace otto_car
 			cv::putText(image, std::to_string(predictionNumber), contourRect.center, cv::FONT_HERSHEY_DUPLEX, 0.9, 
 							CV_RGB(0, 255, 0), 1);
 		}
-		else if(predictionNumber >= 10 && predictionNumber < 14)
+		else if(predictionNumber >= 10 && predictionNumber < 13)
 		{
 			if(predictionNumber == 11)
 			{
@@ -203,7 +205,7 @@ namespace otto_car
 			{
 				labelString = "Turn right";
 			}
-			else
+			else 
 			{
 				labelString = "Speed limit ends";
 			}

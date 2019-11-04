@@ -32,7 +32,7 @@ namespace otto_car
 				angle, etc..) change following values accordingly through testing*/
 				const float NUMBER_SIGN_RECT_MIN_WIDTH = 15;
 				const float NUMBER_SIGN_RECT_MAX_WIDTH = 25;
-				const float NUMBER_SIGN_RECT_MIN_HEIGHT = 110;
+				const float NUMBER_SIGN_RECT_MIN_HEIGHT = 107;
 				const float NUMBER_SIGN_RECT_MAX_HEIGHT = 120;
 
 				const float ARROW_SIGN_RECT_MIN_WIDTH = 16;
@@ -117,7 +117,7 @@ namespace otto_car
 				std::vector<float> descriptors;
 				float predictionNumber;
 				std::string labelString;
-				void predictSign(cv::Mat &image, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect);
+				void predictSign(cv::Mat &image, cv::Mat &croppedImage, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect);
 
 			public:
 				DetectSignsOnLane(ros::NodeHandle &nh, std::string locationOfDatFile, std::string nameOfRawImageTopic,
