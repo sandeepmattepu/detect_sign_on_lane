@@ -53,15 +53,48 @@ namespace otto_car
 			cv::cvtColor(imageFromRaw, greyImage, CV_BGR2GRAY);
 			cv::threshold(greyImage, thresholdImage, 90, 255, cv::THRESH_BINARY_INV);
 
+			// Clear previous zebra data
+			orphanZebraStripes.clear();
+			zebraCrossings.clear();
+
 			findContours(thresholdImage.clone(), contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 			for(int i = 0; i < contours.size(); i++)
 			{
 				rotatedRect = cv::minAreaRect(contours[i]);
 				isContourASign = filterContorsForSigns(rotatedRect, cropRect);
+				isContourAZebraStripe = ZebraCrossing::isRectZebraStripe(rotatedRect);
 				if(isContourASign)
 				{
 					preprocessBeforeSignDetection(rotatedRect, imageFromRaw, croppedImage, cropRect);
 					predictSign(imageFromRaw, croppedImage, contours[i], rotatedRect);
+				}
+				else if(isContourAZebraStripe)
+				{
+					std::shared_ptr<cv::RotatedRect> zebraStripe = std::make_shared<cv::RotatedRect>();
+					zebraStripe->angle = rotatedRect.angle;
+					zebraStripe->center.x = rotatedRect.center.x;
+					zebraStripe->center.y = rotatedRect.center.y;
+					zebraStripe->size.width = rotatedRect.size.width;
+					zebraStripe->size.height = rotatedRect.size.height;
+					orphanZebraStripes.push_back(zebraStripe);
+				}
+			}
+
+			ZebraCrossing::clusterStripesForZebraCrossings(orphanZebraStripes, zebraCrossings);
+			for(int i = 0; i < zebraCrossings.size(); i++)
+			{
+				if(zebraCrossings[i] != nullptr)
+				{
+					// Drawing the results of the zebra crossing
+					zebraCrossings[i]->boundingBoxOfZebraCrossing(zebraCrossingBoundingBox);
+					for(int j = 0; j < zebraCrossingBoundingBox.size(); j++)
+					{
+						cv::line(imageFromRaw, zebraCrossingBoundingBox[j], zebraCrossingBoundingBox[(j+1)%4],
+								cv::Scalar(0,255,0));
+					}
+					zebraCrossings[i]->getCenterOfZebraCrossing(centerOfZebraCrossing);
+					cv::putText(imageFromRaw, "Zebra crossing", centerOfZebraCrossing, 
+							cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
 				}
 			}
 		//}

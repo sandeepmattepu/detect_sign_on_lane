@@ -14,6 +14,8 @@
 #include "opencv2/objdetect.hpp"
 #include "opencv2/ml.hpp"
 
+#include "ZebraCrossing.h"
+
 namespace otto_car
 {
 	namespace lane_markings
@@ -81,6 +83,11 @@ namespace otto_car
     			std::vector<cv::Vec4i> hierarchy;
     			cv::RotatedRect rotatedRect;
     			bool isContourASign = false;
+				bool isContourAZebraStripe = false;
+				std::vector<std::shared_ptr<cv::RotatedRect>> orphanZebraStripes;
+				std::vector<std::shared_ptr<ZebraCrossing>> zebraCrossings;
+				std::array<cv::Point2f,4> zebraCrossingBoundingBox;
+				cv::Point2f centerOfZebraCrossing;
     			cv::Mat boxPts;
     			cv::Size cropRect;
 				cv::Mat croppedImage;
