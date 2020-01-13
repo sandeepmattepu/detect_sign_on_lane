@@ -68,7 +68,7 @@ namespace otto_car
 					preprocessBeforeSignDetection(rotatedRect, imageFromRaw, croppedImage, cropRect);
 					predictSign(imageFromRaw, croppedImage, contours[i], rotatedRect);
 				}
-				else if(isContourAZebraStripe)
+				if(isContourAZebraStripe)
 				{
 					std::shared_ptr<cv::RotatedRect> zebraStripe = std::make_shared<cv::RotatedRect>();
 					zebraStripe->angle = rotatedRect.angle;
