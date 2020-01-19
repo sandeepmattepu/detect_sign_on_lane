@@ -15,6 +15,7 @@
 #include "opencv2/ml.hpp"
 
 #include "ZebraCrossing.h"
+#include "BarredArea.h"
 
 namespace otto_car
 {
@@ -86,8 +87,12 @@ namespace otto_car
 				bool isContourAZebraStripe = false;
 				std::vector<std::shared_ptr<cv::RotatedRect>> orphanZebraStripes;
 				std::vector<std::shared_ptr<ZebraCrossing>> zebraCrossings;
+				std::vector<std::shared_ptr<BarredAreaStripe>> barredAreaStripes;
+				std::vector<std::shared_ptr<BarredArea>> barredAreas;
 				std::array<cv::Point2f,4> zebraCrossingBoundingBox;
+				std::array<cv::Point,4> barredAreaBoundingBox;
 				cv::Point2f centerOfZebraCrossing;
+				cv::Point centerOfBarredArea;
     			cv::Mat boxPts;
     			cv::Size cropRect;
 				cv::Mat croppedImage;

@@ -135,7 +135,8 @@ include_directories(
 add_executable(detect_markings_on_lane 
 				src/DetectSignsMain.cpp
 				src/DetectSignsOnLane.cpp
-				src/ZebraCrossing.cpp)
+				src/ZebraCrossing.cpp
+				src/BarredArea.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

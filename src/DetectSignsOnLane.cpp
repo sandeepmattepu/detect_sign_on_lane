@@ -53,9 +53,11 @@ namespace otto_car
 			cv::cvtColor(imageFromRaw, greyImage, CV_BGR2GRAY);
 			cv::threshold(greyImage, thresholdImage, 90, 255, cv::THRESH_BINARY_INV);
 
-			// Clear previous zebra data
+			// Clear previous zebra and barred area data
 			orphanZebraStripes.clear();
 			zebraCrossings.clear();
+			barredAreaStripes.clear();
+			barredAreas.clear();
 
 			findContours(thresholdImage.clone(), contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 			for(int i = 0; i < contours.size(); i++)
@@ -78,6 +80,11 @@ namespace otto_car
 					zebraStripe->size.height = rotatedRect.size.height;
 					orphanZebraStripes.push_back(zebraStripe);
 				}
+				std::shared_ptr<BarredAreaStripe> tempBarredAreaStripe;
+				if(BarredAreaStripe::isBarredAreaStripe(contours[i], tempBarredAreaStripe))
+				{
+					barredAreaStripes.push_back(tempBarredAreaStripe);
+				}
 			}
 
 			ZebraCrossing::clusterStripesForZebraCrossings(orphanZebraStripes, zebraCrossings);
@@ -94,6 +101,23 @@ namespace otto_car
 					}
 					zebraCrossings[i]->getCenterOfZebraCrossing(centerOfZebraCrossing);
 					cv::putText(imageFromRaw, "Zebra crossing", centerOfZebraCrossing, 
+							cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+				}
+			}
+
+			BarredArea::clusterStripes(barredAreaStripes, barredAreas);
+			for(int i = 0; i < barredAreas.size(); i++)
+			{
+				if(barredAreas[i] != nullptr)
+				{
+					barredAreas[i]->getBarredAreaBox(barredAreaBoundingBox);
+					for(int j = 0; j < barredAreaBoundingBox.size(); j++)
+					{
+						cv::line(imageFromRaw, barredAreaBoundingBox[j], barredAreaBoundingBox[(j+1)%4],
+								cv::Scalar(0,255,0));
+					}
+					barredAreas[i]->getCenter(centerOfBarredArea);
+					cv::putText(imageFromRaw, "Barred Area", centerOfZebraCrossing, 
 							cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
 				}
 			}
