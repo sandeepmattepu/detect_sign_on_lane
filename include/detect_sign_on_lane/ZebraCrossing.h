@@ -13,12 +13,12 @@ namespace otto_car
         {
             private:
 
-                static constexpr float ZEBRA_CROSSING_MINIMUM_HEIGHT = 95;
-                static constexpr float ZEBRA_CROSSING_MAXIMUM_HEIGHT = 111;
-                static constexpr float ZEBRA_CROSSING_MINIMUM_WIDTH = 9;
-                static constexpr float ZEBRA_CROSSING_MAXIMUM_WIDTH = 15;
-                static constexpr float MIN_DISTANCE_BTW_ZEBRA_STRIPES = 18;
-                static constexpr float MAX_DISTANCE_BTW_ZEBRA_STRIPES = 24;
+                static constexpr float ZEBRA_CROSSING_MINIMUM_HEIGHT = 90;
+                static constexpr float ZEBRA_CROSSING_MAXIMUM_HEIGHT = 118;
+                static constexpr float ZEBRA_CROSSING_MINIMUM_WIDTH = 7;
+                static constexpr float ZEBRA_CROSSING_MAXIMUM_WIDTH = 18;
+                static constexpr float MIN_DISTANCE_BTW_ZEBRA_STRIPES = 14;
+                static constexpr float MAX_DISTANCE_BTW_ZEBRA_STRIPES = 26;
                 static constexpr int MIN_STRIPES_FOR_ZEBRA_CROSSING = 4;
 
                 // Stored from left to right i.e left most stripe will be in stripeCenters[0]
