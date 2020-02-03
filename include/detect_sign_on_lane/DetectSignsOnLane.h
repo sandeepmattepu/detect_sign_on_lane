@@ -8,6 +8,7 @@
 #include "std_srvs/SetBool.h"
 #include "sensor_msgs/Image.h"
 #include "cv_bridge/cv_bridge.h"
+#include "detect_sign_on_lane/SignsOnLaneMsg.h"
 
 #include "opencv2/opencv.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -84,6 +85,7 @@ namespace otto_car
 
 				ros::Subscriber subscriber;
 				ros::ServiceServer setDetectionFlagService;
+				ros::Publisher signResultsPublisher;
 				ros::Publisher debugImageResultPublisher;
 
 				std::string rosImageToCVEncoding = "bgr8";
@@ -109,6 +111,8 @@ namespace otto_car
 				bool isContourAPedestrianIsland(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result);
 
 				void alignImageToPedestrianIsland(const cv::Mat &originalImage, const cv::RotatedRect &rotRect, cv::Mat &result);
+
+				void publishResults(const std::vector<SignsOnLaneResult> &resultsOnLane);
 
 				void publishResultsForDebug(const cv::Mat &originalImage, const std::vector<SignsOnLaneResult> &resultsOnLane);
 

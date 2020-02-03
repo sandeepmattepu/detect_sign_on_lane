@@ -19,6 +19,8 @@ namespace otto_car
 	{
 		setDetectionFlagService = nodeHandle->advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
 		subscriber = nodeHandle->subscribe(nameOfInputImageTopic, 40, &DetectSignsOnLane::detectSignsFromRawImage, this);
+		std::string resultsTopicName = ros::this_node::getName() + "/sign_results";
+		signResultsPublisher = nodeHandle->advertise<detect_sign_on_lane::SignsOnLaneMsg>(resultsTopicName, 50);
 		std::string fullDebugResultName = ros::this_node::getName() + "/debug_result_image";
 		if(debugMode)
 		{
@@ -153,6 +155,7 @@ namespace otto_car
 					finalSignResults.push_back(signOnLaneResult);
 				}
 			}
+			publishResults(finalSignResults);
 			isDetectionUnderProgress = false;
 		}
 
@@ -530,6 +533,29 @@ namespace otto_car
 		}
 		matRotation = cv::getRotationMatrix2D( rotRect.center, angleToRotate, 1 );
 		cv::warpAffine( originalImage, result, matRotation, originalImage.size() );
+	}
+	
+	void DetectSignsOnLane::publishResults(const std::vector<SignsOnLaneResult> &resultsOnLane)
+	{
+		detect_sign_on_lane::SignsOnLaneMsg finalResults;
+		for(int i = 0; i < resultsOnLane.size(); i++)
+		{
+			detect_sign_on_lane::SignOnLaneMsg singleResult;
+			singleResult.signType = (uint8_t)resultsOnLane[i].signType;
+			singleResult.value = (int64_t)resultsOnLane[i].value;
+			singleResult.width = (float)resultsOnLane[i].width;
+			singleResult.height = (float)resultsOnLane[i].height;
+			for(int j = 0; j < 4; j++)
+			{
+				singleResult.boundingBox[j].x = resultsOnLane[i].boundingBox[j].x;
+				singleResult.boundingBox[j].y = resultsOnLane[i].boundingBox[j].y;
+			}
+			finalResults.results.push_back(singleResult);
+		}
+		if(resultsOnLane.size() > 0)
+		{
+			signResultsPublisher.publish(finalResults);
+		}
 	}
 
 	float DetectSignsOnLane::slopeOfLine(const cv::Point2f &point1, const cv::Point2f &point2)

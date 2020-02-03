@@ -9,13 +9,13 @@ namespace otto_car
 	{
 		enum SIGN_TYPE
 		{
-			SPEED_LIMIT_NUMBER,
-			END_OF_SPEED_LIMIT,
-			TURN_LEFT,
-			TURN_RIGHT,
-			ZEBRA_CROSSING,
-			BARRED_AREA,
-			PEDESTRIAN_ISLAND
+			SPEED_LIMIT_NUMBER = 0,
+			END_OF_SPEED_LIMIT = 1,
+			TURN_LEFT = 2,
+			TURN_RIGHT = 3,
+			ZEBRA_CROSSING = 4,
+			BARRED_AREA = 5,
+			PEDESTRIAN_ISLAND = 6
 		};
 
 		struct SignsOnLaneResult
