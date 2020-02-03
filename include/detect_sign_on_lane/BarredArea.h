@@ -37,7 +37,7 @@ namespace otto_car
                 void getBarredAreaStripe(std::array<cv::Point,4> &result);
                 void getCenterPoint(cv::Point &result);
                 static bool isBarredAreaStripe(const std::vector<cv::Point> &contour, std::shared_ptr<BarredAreaStripe> &result);
-                static float distanceBtwPoints(const cv::Point &point1, const cv::Point &point2);
+                static float distanceBtwPoints(const cv::Point2f &point1, const cv::Point2f &point2);
                 static float angleBtwThreePoints(const cv::Point &point1, const cv::Point &point2, const cv::Point &point3);
         };
 

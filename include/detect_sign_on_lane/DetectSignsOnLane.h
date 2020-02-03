@@ -52,6 +52,13 @@ namespace otto_car
 				const float MIN_DISTANCE_SPEED_LIMIT_NUM = 25;
 				const float MAX_DISTANCE_SPEED_LIMIT_NUM = 35;
 
+				const float PEDESTRIAN_ISLAND_MIN_HEIGHT = 88;
+				const float PEDESTRIAN_ISLAND_MAX_HEIGHT = 98;
+				const float PEDESTRIAN_ISLAND_MIN_WIDTH = 63;
+				const float PEDESTRIAN_ISLAND_MAX_WIDTH = 73;
+
+				const float CROPPING_HEIGHT_PEDESTRIAN_ISLAND = 250;
+
 				const float SPEEDEND_CROPPING_WIDTH = 65;
 				const float SPEEDEND_CROPPING_HEIGHT = 145;
 
@@ -99,9 +106,15 @@ namespace otto_car
 				
 				bool isContourASpeedEnd(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result);
 
+				bool isContourAPedestrianIsland(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result);
+
+				void alignImageToPedestrianIsland(const cv::Mat &originalImage, const cv::RotatedRect &rotRect, cv::Mat &result);
+
 				void publishResultsForDebug(const cv::Mat &originalImage, const std::vector<SignsOnLaneResult> &resultsOnLane);
 
 				void mergeOrphanNumbers(const std::vector<SignsOnLaneResult> &orphanNumbers, std::vector<SignsOnLaneResult> &results);
+
+				float slopeOfLine(const cv::Point2f &point1, const cv::Point2f &point2);
 
 			public:
 				DetectSignsOnLane(ros::NodeHandle &nh, std::string locationOfDatFile, std::string nameOfRawImageTopic,

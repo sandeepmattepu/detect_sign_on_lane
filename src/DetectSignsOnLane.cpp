@@ -100,6 +100,10 @@ namespace otto_car
 				{
 					barredAreaStripes.push_back(tempBarredAreaStripe);
 				}
+				else if(isContourAPedestrianIsland(imageFromRaw, contours[i], signOnLaneResult))
+				{
+					finalSignResults.push_back(signOnLaneResult);
+				}
 			}
 
 			mergeOrphanNumbers(orphanNumbers, finalSignResults);
@@ -436,6 +440,103 @@ namespace otto_car
 			}
 		}
 		return isSpeedEndSign;
+	}
+
+	bool DetectSignsOnLane::isContourAPedestrianIsland(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result)
+	{
+		bool isPedestrianIsland = false;
+		cv::RotatedRect rotatedRect = cv::minAreaRect(contour);
+		float widthOfRect = rotatedRect.size.width;
+		float heightOfRect = rotatedRect.size.height;
+		if(widthOfRect > heightOfRect)
+		{
+			widthOfRect = heightOfRect;
+			heightOfRect = rotatedRect.size.width;
+		}
+
+		bool isDimensionsCloser = false;
+		if(widthOfRect <= PEDESTRIAN_ISLAND_MAX_WIDTH && widthOfRect >= PEDESTRIAN_ISLAND_MIN_WIDTH)
+		{
+			if(heightOfRect <= PEDESTRIAN_ISLAND_MAX_HEIGHT && heightOfRect >= PEDESTRIAN_ISLAND_MIN_HEIGHT)
+			{
+				isDimensionsCloser = true;
+			}
+		}
+
+		if(isDimensionsCloser)
+		{
+			cv::Mat rotatedImage;
+			alignImageToPedestrianIsland(originalImage, rotatedRect, rotatedImage);
+			cv::Point2f topCornerOfCroppingBox;
+			topCornerOfCroppingBox = rotatedRect.center;
+			topCornerOfCroppingBox.x -= (PEDESTRIAN_ISLAND_MIN_WIDTH + PEDESTRIAN_ISLAND_MAX_WIDTH) / 4;
+			topCornerOfCroppingBox.x -= 4;
+			topCornerOfCroppingBox.x = (topCornerOfCroppingBox.x < 0) ? 0 : topCornerOfCroppingBox.x;
+			topCornerOfCroppingBox.y -= (CROPPING_HEIGHT_PEDESTRIAN_ISLAND / 2);
+			topCornerOfCroppingBox.y = (topCornerOfCroppingBox.y < 0) ? 0 : topCornerOfCroppingBox.y;
+			cv::Rect cropBoxDimensions;
+			cropBoxDimensions.width = PEDESTRIAN_ISLAND_MAX_WIDTH + 4;
+			cropBoxDimensions.height = CROPPING_HEIGHT_PEDESTRIAN_ISLAND;
+			if((topCornerOfCroppingBox.y + cropBoxDimensions.height) > rotatedImage.rows)
+			{
+				cropBoxDimensions.height = rotatedImage.rows - topCornerOfCroppingBox.y - 1;
+			}
+			cropBoxDimensions.x = topCornerOfCroppingBox.x;
+			cropBoxDimensions.y = topCornerOfCroppingBox.y;
+			cv::Mat croppedImage(rotatedImage, cropBoxDimensions);
+			cv::resize(croppedImage, croppedImage, cv::Size(RESIZE_WIDTH, RESIZE_HEIGHT));
+			cv::threshold(croppedImage, croppedImage, 90, 225, cv::THRESH_BINARY);
+			int predictedNumber = predictSign(croppedImage);
+			isPedestrianIsland = (predictedNumber == 15);
+			if(isPedestrianIsland)
+			{
+				result.signType = SIGN_TYPE::PEDESTRIAN_ISLAND;
+				result.value = -1;
+				result.width = (PEDESTRIAN_ISLAND_MIN_WIDTH + PEDESTRIAN_ISLAND_MAX_WIDTH) / 2;
+				result.height = (PEDESTRIAN_ISLAND_MIN_HEIGHT + PEDESTRIAN_ISLAND_MAX_HEIGHT) / 2;
+				result.center = rotatedRect.center;
+				rotatedRect.points(result.boundingBox);
+			}
+		}
+		return isPedestrianIsland;
+	}
+
+	void DetectSignsOnLane::alignImageToPedestrianIsland(const cv::Mat &originalImage, const cv::RotatedRect &rotRect, cv::Mat &result)
+	{
+		cv::Point2f vertices[4];
+		rotRect.points(vertices);
+		float width = BarredAreaStripe::distanceBtwPoints(vertices[0], vertices[1]);
+		float height = BarredAreaStripe::distanceBtwPoints(vertices[1], vertices[2]);
+		float slope = 0;
+		if(width > height)
+		{
+			height = width;
+			slope = slopeOfLine(vertices[0], vertices[1]);
+		}
+		else
+		{
+			slope = slopeOfLine(vertices[1], vertices[2]);
+		}
+		cv::Mat matRotation;
+		float angleOfLine = atan(slope) * 180 / 3.14159;
+		float angleToRotate = 0;
+		if(angleOfLine <= 0)
+		{
+			angleToRotate = ((180 + angleOfLine) - 90);
+		}
+		else
+		{
+			angleToRotate = -(90 - angleOfLine);
+		}
+		matRotation = cv::getRotationMatrix2D( rotRect.center, angleToRotate, 1 );
+		cv::warpAffine( originalImage, result, matRotation, originalImage.size() );
+	}
+
+	float DetectSignsOnLane::slopeOfLine(const cv::Point2f &point1, const cv::Point2f &point2)
+	{
+		float result = 0;
+		result = (point2.y - point1.y) / (point2.x - point1.x);
+		return result;
 	}
 
 	void DetectSignsOnLane::constructHogObject()

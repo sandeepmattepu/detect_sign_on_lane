@@ -144,7 +144,7 @@ namespace otto_car
             return result;
         }
 
-        float BarredAreaStripe::distanceBtwPoints(const cv::Point &point1, const cv::Point &point2)
+        float BarredAreaStripe::distanceBtwPoints(const cv::Point2f &point1, const cv::Point2f &point2)
         {
             float xComponent, yComponent;
 			xComponent = (point1.x - point2.x) * (point1.x - point2.x);
