@@ -184,7 +184,7 @@ namespace otto_car
                 {
                     tempBarredArea->stripes.push_back(barredStripes[i]);
                     tempBarredArea->angleOfBarredArea = barredStripes[i]->getAngleOfStripe();
-                    tempBarredArea->calculateCenter();
+                    tempBarredArea->calculateDimensionsOfBarredArea();
                     tempResults.push_back(tempBarredArea);
                 }
             }
@@ -273,7 +273,7 @@ namespace otto_car
                         }
                         stripes = otherBarredArea->stripes;
                     }
-                    calculateCenter();
+                    calculateDimensionsOfBarredArea();
                 }
             }
             return result;
@@ -296,9 +296,40 @@ namespace otto_car
             center.y = (bottomMostPoint.y + topMostPoint.y) / 2;
         }
 
-        void BarredArea::getBarredAreaBox(std::array<cv::Point,4> &box)
+        void BarredArea::calculateDimensionsOfBarredArea()
         {
-            std::array<cv::Point,4> barredAreaBox;
+            calculateCenter();
+            std::vector<cv::Point> contour;
+            std::array<cv::Point2f,4> boundingBox;
+            getBarredAreaBox(boundingBox);
+            for(int i = 0; i < boundingBox.size(); i++)
+            {
+                contour.push_back(boundingBox[i]);
+            }
+            cv::RotatedRect rotatedRect = cv::minAreaRect(contour);
+            widthOfBarredArea = rotatedRect.size.width;
+            heightOfBarredArea = rotatedRect.size.height;
+            if(widthOfBarredArea > heightOfBarredArea)
+            {
+                float tempValue = widthOfBarredArea;
+                widthOfBarredArea = heightOfBarredArea;
+                heightOfBarredArea = widthOfBarredArea;
+            }
+        }
+
+        double BarredArea::getWidthOfBarredArea()
+        {
+            return widthOfBarredArea;
+        }
+        
+        double BarredArea::getHeightOfBarredArea()
+        {
+            return heightOfBarredArea;
+        }
+
+        void BarredArea::getBarredAreaBox(std::array<cv::Point2f,4> &box)
+        {
+            std::array<cv::Point2f,4> barredAreaBox;
             getActualBarredAreaBox(barredAreaBox);
 
             // We have to extend our barred area dimensions to accomidate traingle stripe in actual barred area
@@ -333,7 +364,7 @@ namespace otto_car
             unitVectorResult.y = (endingPoint.y - startingPoint.y) / distanceBtwPoints;
         }
 
-        void BarredArea::getActualBarredAreaBox(std::array<cv::Point,4> &box)
+        void BarredArea::getActualBarredAreaBox(std::array<cv::Point2f,4> &box)
         {
             std::array<cv::Point,4> stripeBox;
             stripes[0]->getBarredAreaStripe(stripeBox);
@@ -349,7 +380,7 @@ namespace otto_car
             box[3].y = stripeBox[3].y;
         }
 
-        void BarredArea::getCenter(cv::Point &centerResult)
+        void BarredArea::getCenter(cv::Point2f &centerResult)
         {
             centerResult.x = center.x;
             centerResult.y = center.y;

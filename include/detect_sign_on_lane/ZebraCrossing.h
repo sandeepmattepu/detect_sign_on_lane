@@ -35,7 +35,7 @@ namespace otto_car
             public:
                 
                 ZebraCrossing();
-                static bool isRectZebraStripe(cv::RotatedRect &rotatedRect);
+                static bool isRectZebraStripe(const std::vector<cv::Point> &contour);
                 static void clusterStripesForZebraCrossings(std::vector<std::shared_ptr<cv::RotatedRect>> &stripes,
                             std::vector<std::shared_ptr<ZebraCrossing>> &results);
                 void boundingBoxOfZebraCrossing(std::array<cv::Point2f,4> &results);

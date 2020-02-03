@@ -6,13 +6,13 @@ namespace otto_car
 	{
 	
 	DetectSignsOnLane::DetectSignsOnLane(ros::NodeHandle &nh, std::string locationOfDatFile, std::string nameOfRawImageTopic, 
-											std::string setDetectionFlagServiceName)
+											std::string setDetectionFlagServiceName, bool isDebugMode)
 	{
 		fullServiceName = ros::this_node::getName() + setDetectionFlagServiceName;
 		nameOfInputImageTopic = nameOfRawImageTopic;
 		locationOfDataFile = locationOfDatFile;
 		nodeHandle = std::shared_ptr<ros::NodeHandle>(&nh);
-		tempCVImage = std::make_shared<cv_bridge::CvImage>();
+		debugMode = isDebugMode;
 	}
 
 	void DetectSignsOnLane::init()
@@ -20,7 +20,10 @@ namespace otto_car
 		setDetectionFlagService = nodeHandle->advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
 		subscriber = nodeHandle->subscribe(nameOfInputImageTopic, 40, &DetectSignsOnLane::detectSignsFromRawImage, this);
 		std::string fullDebugResultName = ros::this_node::getName() + "/debug_result_image";
-		debugImageResultPublisher = nodeHandle->advertise<sensor_msgs::Image>(fullDebugResultName, 50);
+		if(debugMode)
+		{
+			debugImageResultPublisher = nodeHandle->advertise<sensor_msgs::Image>(fullDebugResultName, 50);
+		}
 		constructHogObject();
 		modelPtr = cv::ml::SVM::load(locationOfDataFile);
 	}
@@ -45,34 +48,47 @@ namespace otto_car
 
 	void DetectSignsOnLane::detectSignsFromRawImage(const sensor_msgs::Image &image)
 	{
-		//if(continueDetection)
-		//{
-			cv_bridge::CvImagePtr imagePtr = cv_bridge::toCvCopy(image, rosImageToCVEncoding);
-			imageFromRaw = imagePtr->image.clone();
-			croppedImage = imageFromRaw.clone();
+		cv_bridge::CvImagePtr imagePtr = cv_bridge::toCvCopy(image, rosImageToCVEncoding);
+		cv::Mat imageFromRaw = imagePtr->image.clone();
+		std::vector<SignsOnLaneResult> finalSignResults;
+
+		if(continueDetection && !isDetectionUnderProgress)
+		{
+			isDetectionUnderProgress = true;
+			std::vector<SignsOnLaneResult> orphanNumbers;
+			std::vector<std::shared_ptr<cv::RotatedRect>> orphanZebraStripes;
+			std::vector<std::shared_ptr<ZebraCrossing>> zebraCrossings;
+			std::vector<std::shared_ptr<BarredAreaStripe>> barredAreaStripes;
+			std::vector<std::shared_ptr<BarredArea>> barredAreas;
+
+			
+			cv::Mat greyImage, thresholdImage;
 			cv::cvtColor(imageFromRaw, greyImage, CV_BGR2GRAY);
 			cv::threshold(greyImage, thresholdImage, 90, 255, cv::THRESH_BINARY_INV);
 
-			// Clear previous zebra and barred area data
-			orphanZebraStripes.clear();
-			zebraCrossings.clear();
-			barredAreaStripes.clear();
-			barredAreas.clear();
-
+			std::vector<std::vector<cv::Point>> contours;
+    		std::vector<cv::Vec4i> hierarchy;
 			findContours(thresholdImage.clone(), contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 			for(int i = 0; i < contours.size(); i++)
 			{
-				rotatedRect = cv::minAreaRect(contours[i]);
-				isContourASign = filterContorsForSigns(rotatedRect, cropRect);
-				isContourAZebraStripe = ZebraCrossing::isRectZebraStripe(rotatedRect);
-				if(isContourASign)
+				SignsOnLaneResult signOnLaneResult;
+				std::shared_ptr<BarredAreaStripe> tempBarredAreaStripe;
+				if(isContourANumber(imageFromRaw, contours[i], signOnLaneResult))
 				{
-					preprocessBeforeSignDetection(rotatedRect, imageFromRaw, croppedImage, cropRect);
-					predictSign(imageFromRaw, croppedImage, contours[i], rotatedRect);
+					orphanNumbers.push_back(signOnLaneResult);
 				}
-				if(isContourAZebraStripe)
+				else if(isContourATurnSign(imageFromRaw, contours[i], signOnLaneResult))
+				{
+					finalSignResults.push_back(signOnLaneResult);
+				}
+				else if(isContourASpeedEnd(imageFromRaw, contours[i], signOnLaneResult))
+				{
+					finalSignResults.push_back(signOnLaneResult);
+				}
+				else if(ZebraCrossing::isRectZebraStripe(contours[i]))
 				{
 					std::shared_ptr<cv::RotatedRect> zebraStripe = std::make_shared<cv::RotatedRect>();
+					cv::RotatedRect rotatedRect = cv::minAreaRect(contours[i]);
 					zebraStripe->angle = rotatedRect.angle;
 					zebraStripe->center.x = rotatedRect.center.x;
 					zebraStripe->center.y = rotatedRect.center.y;
@@ -80,28 +96,34 @@ namespace otto_car
 					zebraStripe->size.height = rotatedRect.size.height;
 					orphanZebraStripes.push_back(zebraStripe);
 				}
-				std::shared_ptr<BarredAreaStripe> tempBarredAreaStripe;
-				if(BarredAreaStripe::isBarredAreaStripe(contours[i], tempBarredAreaStripe))
+				else if(BarredAreaStripe::isBarredAreaStripe(contours[i], tempBarredAreaStripe))
 				{
 					barredAreaStripes.push_back(tempBarredAreaStripe);
 				}
 			}
+
+			mergeOrphanNumbers(orphanNumbers, finalSignResults);
 
 			ZebraCrossing::clusterStripesForZebraCrossings(orphanZebraStripes, zebraCrossings);
 			for(int i = 0; i < zebraCrossings.size(); i++)
 			{
 				if(zebraCrossings[i] != nullptr)
 				{
-					// Drawing the results of the zebra crossing
-					zebraCrossings[i]->boundingBoxOfZebraCrossing(zebraCrossingBoundingBox);
-					for(int j = 0; j < zebraCrossingBoundingBox.size(); j++)
-					{
-						cv::line(imageFromRaw, zebraCrossingBoundingBox[j], zebraCrossingBoundingBox[(j+1)%4],
-								cv::Scalar(0,255,0));
-					}
+					SignsOnLaneResult signOnLaneResult;
+					signOnLaneResult.signType = SIGN_TYPE::ZEBRA_CROSSING;
+					signOnLaneResult.value = -1;
+					signOnLaneResult.width = zebraCrossings[i]->getWidthOfZebraCrossing();
+					signOnLaneResult.height = zebraCrossings[i]->getHeightOfZebraCrossing();
+					cv::Point2f centerOfZebraCrossing;
 					zebraCrossings[i]->getCenterOfZebraCrossing(centerOfZebraCrossing);
-					cv::putText(imageFromRaw, "Zebra crossing", centerOfZebraCrossing, 
-							cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					signOnLaneResult.center = centerOfZebraCrossing;
+					std::array<cv::Point2f,4> boundingBox;
+					zebraCrossings[i]->boundingBoxOfZebraCrossing(boundingBox);
+					for(int i = 0; i < boundingBox.size(); i++)
+					{
+						signOnLaneResult.boundingBox[i] = boundingBox[i];
+					}
+					finalSignResults.push_back(signOnLaneResult);
 				}
 			}
 
@@ -110,23 +132,310 @@ namespace otto_car
 			{
 				if(barredAreas[i] != nullptr)
 				{
-					barredAreas[i]->getBarredAreaBox(barredAreaBoundingBox);
-					for(int j = 0; j < barredAreaBoundingBox.size(); j++)
-					{
-						cv::line(imageFromRaw, barredAreaBoundingBox[j], barredAreaBoundingBox[(j+1)%4],
-								cv::Scalar(0,255,0));
-					}
+					SignsOnLaneResult signOnLaneResult;
+					signOnLaneResult.signType = SIGN_TYPE::BARRED_AREA;
+					signOnLaneResult.value = -1;
+					signOnLaneResult.width = barredAreas[i]->getWidthOfBarredArea();
+					signOnLaneResult.height = barredAreas[i]->getHeightOfBarredArea();
+					cv::Point2f centerOfBarredArea;
 					barredAreas[i]->getCenter(centerOfBarredArea);
-					cv::putText(imageFromRaw, "Barred Area", centerOfZebraCrossing, 
-							cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					signOnLaneResult.center = centerOfBarredArea;
+					std::array<cv::Point2f,4> boundingBox;
+					barredAreas[i]->getBarredAreaBox(boundingBox);
+					for(int i = 0; i < boundingBox.size(); i++)
+					{
+						signOnLaneResult.boundingBox[i] = boundingBox[i];
+					}
+					finalSignResults.push_back(signOnLaneResult);
 				}
 			}
-		//}
-			
-		tempCVImage->image = imageFromRaw;
-		tempCVImage->encoding = "bgr8";
-		tempCVImage->toImageMsg(debugImage);
-		debugImageResultPublisher.publish(debugImage);
+			isDetectionUnderProgress = false;
+		}
+
+		if(debugMode)
+		{
+			publishResultsForDebug(imageFromRaw, finalSignResults);
+		}
+	}
+
+	void DetectSignsOnLane::mergeOrphanNumbers(const std::vector<SignsOnLaneResult> &orphanNumbers, std::vector<SignsOnLaneResult> &results)
+	{
+		std::vector<SignsOnLaneResult> numbers = orphanNumbers;
+		while(numbers.size() > 1)
+		{
+			cv::Point2f number1Center = numbers[numbers.size() - 1].center;
+			for(int i = (numbers.size() - 2); i >= 0; i--)
+			{
+				cv::Point2f number2Center = numbers[i].center;
+				float distanceBtwNumbers = BarredAreaStripe::distanceBtwPoints(number1Center, number2Center);
+				if((distanceBtwNumbers <= MAX_DISTANCE_SPEED_LIMIT_NUM) && (distanceBtwNumbers >= MIN_DISTANCE_SPEED_LIMIT_NUM))
+				{
+					SignsOnLaneResult leftNumber, rightNumber, combinedNumber;
+					// Determining which number is left most
+					if(number1Center.x < number2Center.x)
+					{
+						leftNumber = numbers[numbers.size() - 1];
+						rightNumber = numbers[i];
+					}
+					else
+					{
+						leftNumber = numbers[i];
+						rightNumber = numbers[numbers.size() - 1];
+					}
+					combinedNumber.signType = SIGN_TYPE::SPEED_LIMIT_NUMBER;
+					combinedNumber.value = (10 * leftNumber.value) + rightNumber.value;
+					combinedNumber.height = leftNumber.height;
+					combinedNumber.center.x = (leftNumber.center.x + rightNumber.center.x) / 2;
+					combinedNumber.center.y = (leftNumber.center.y + rightNumber.center.y) / 2;
+					combinedNumber.boundingBox[0] = leftNumber.boundingBox[0];
+					combinedNumber.boundingBox[1] = leftNumber.boundingBox[1];
+					combinedNumber.boundingBox[2] = rightNumber.boundingBox[2];
+					combinedNumber.boundingBox[3] = rightNumber.boundingBox[3];
+					combinedNumber.width = BarredAreaStripe::distanceBtwPoints(leftNumber.boundingBox[0], rightNumber.boundingBox[3]);
+					results.push_back(combinedNumber);
+					numbers.erase(numbers.begin() + i);
+					break;
+				}
+				if(numbers.size() != 0)
+				{
+					numbers.pop_back();
+				}
+			}
+		}
+	}
+
+	void DetectSignsOnLane::publishResultsForDebug(const cv::Mat &originalImage, const std::vector<SignsOnLaneResult> &resultsOnLane)
+	{
+		for(int i = 0; i < resultsOnLane.size(); i++)
+		{
+			for(int j = 0; j < 4; j++)
+			{
+				cv::line(originalImage, resultsOnLane[i].boundingBox[j], resultsOnLane[i].boundingBox[(j+1)%4],
+						cv::Scalar(0,255,0));
+			}
+			cv::Point2f center = resultsOnLane[i].center;
+			switch (resultsOnLane[i].signType)
+			{
+				case END_OF_SPEED_LIMIT:
+					cv::putText(originalImage, "Speed limit ends", center, cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					break;
+				case TURN_LEFT:
+					cv::putText(originalImage, "Turn left", center, cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					break;
+				case TURN_RIGHT:
+					cv::putText(originalImage, "Turn right", center, cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					break;
+				case ZEBRA_CROSSING:
+					cv::putText(originalImage, "Zebra crossing", center, cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					break;
+				case BARRED_AREA:
+					cv::putText(originalImage, "Barred area", center, cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					break;
+				case PEDESTRIAN_ISLAND:
+					cv::putText(originalImage, "Pedestrian island", center, cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					break;
+				case SPEED_LIMIT_NUMBER:
+					std::string numberString = std::to_string(resultsOnLane[i].value);
+					cv::putText(originalImage, numberString, center, cv::FONT_HERSHEY_DUPLEX, 0.9, CV_RGB(0, 255, 0), 1);
+					break;
+			}
+		}
+		cv_bridge::CvImage cvImageMsg;
+		cvImageMsg.image = originalImage;
+		cvImageMsg.encoding = rosImageToCVEncoding;
+		sensor_msgs::Image debugImageMsg;
+		cvImageMsg.toImageMsg(debugImageMsg);
+		debugImageResultPublisher.publish(debugImageMsg);
+	}
+
+	bool DetectSignsOnLane::isContourANumber(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result)
+	{
+		bool isNumber = false;
+		cv::RotatedRect rotatedRect = cv::minAreaRect(contour);
+		double angleOfRect = rotatedRect.angle;
+		cv::Size2f sizeOfRect = rotatedRect.size;
+		double heightOfRect = sizeOfRect.height;
+		double widthOfRect = sizeOfRect.width;
+		bool isRotatedRectNotInOrder = false;
+
+		if(widthOfRect > heightOfRect)
+		{
+			widthOfRect = sizeOfRect.height;
+			heightOfRect = sizeOfRect.width;
+			angleOfRect += 90;
+			isRotatedRectNotInOrder = true;
+		}
+
+		bool hasDimensionsCloserToNumber = false;
+		if((angleOfRect > -60) && (angleOfRect < 60))
+		{
+            hasDimensionsCloserToNumber = (widthOfRect >= NUMBER_SIGN_RECT_MIN_WIDTH);
+			hasDimensionsCloserToNumber = hasDimensionsCloserToNumber && (widthOfRect <= NUMBER_SIGN_RECT_MAX_WIDTH);
+            hasDimensionsCloserToNumber = hasDimensionsCloserToNumber && (heightOfRect >= NUMBER_SIGN_RECT_MIN_HEIGHT);
+			hasDimensionsCloserToNumber = hasDimensionsCloserToNumber && (heightOfRect <= NUMBER_SIGN_RECT_MAX_HEIGHT);
+		}
+
+		if(hasDimensionsCloserToNumber)
+		{
+			cv::Mat cropAndCompImage;
+			cv::Size croppingSize(NUMBER_SIGN_CROPPING_WIDHT, NUMBER_SIGN_CROPPING_HEIGHT);
+			cropAndCompressImage(rotatedRect, originalImage, cropAndCompImage, croppingSize);
+			int predictionNumber = predictSign(cropAndCompImage);
+
+			if(predictionNumber >= 0 && predictionNumber < 10)
+			{
+				isNumber = true;
+				result.signType = SIGN_TYPE::SPEED_LIMIT_NUMBER;
+				result.value = predictionNumber;
+				result.width = widthOfRect;
+				result.height = heightOfRect;
+				result.center = rotatedRect.center;
+				rotatedRect.points(result.boundingBox);
+				// Making sure that bounding box has points in order ie. bottom left[0], top left[1], top right[2], bottom right[3]
+				if(isRotatedRectNotInOrder)
+				{
+					cv::Point2f tempPoint = result.boundingBox[0];
+					result.boundingBox[0] = result.boundingBox[1];
+					result.boundingBox[1] = result.boundingBox[2];
+					result.boundingBox[2] = result.boundingBox[3];
+					result.boundingBox[3] = tempPoint;
+				}
+			}
+		}
+		return isNumber;
+	}
+
+	bool DetectSignsOnLane::isContourATurnSign(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result)
+	{
+		bool isTurnSign = false;
+		cv::RotatedRect rotatedRect = cv::minAreaRect(contour);
+		double angleOfRect = rotatedRect.angle;
+		cv::Size2f sizeOfRect = rotatedRect.size;
+		double heightOfRect = sizeOfRect.height;
+		double widthOfRect = sizeOfRect.width;
+		bool isRotatedRectNotInOrder = false;
+
+		if(widthOfRect > heightOfRect)
+		{
+			widthOfRect = sizeOfRect.height;
+			heightOfRect = sizeOfRect.width;
+			angleOfRect += 90;
+			isRotatedRectNotInOrder = true;
+		}
+
+		bool dimensionsCloserToTurnSign = false;
+		if((angleOfRect > -60) && (angleOfRect < 60))
+		{
+            dimensionsCloserToTurnSign = (widthOfRect >= ARROW_SIGN_RECT_MIN_WIDTH);
+			dimensionsCloserToTurnSign = dimensionsCloserToTurnSign && (widthOfRect <= ARROW_SIGN_RECT_MAX_WIDTH);
+            dimensionsCloserToTurnSign = dimensionsCloserToTurnSign && (heightOfRect >= ARROW_SIGN_RECT_MIN_HEIGHT);
+			dimensionsCloserToTurnSign = dimensionsCloserToTurnSign && (heightOfRect <= ARROW_SIGN_RECT_MAX_HEIGHT);
+		}
+
+		if(dimensionsCloserToTurnSign)
+		{
+			cv::Mat cropAndCompImage;
+			cv::Size croppingSize(TURN_SIGN_CROPPING_WIDTH, TURN_SIGN_CROPPING_HEIGHT);
+			cropAndCompressImage(rotatedRect, originalImage, cropAndCompImage, croppingSize);
+			int predictionNumber = predictSign(cropAndCompImage);
+
+			if(predictionNumber == 11)
+			{
+				isTurnSign = true;
+				result.signType = SIGN_TYPE::TURN_LEFT;
+				result.value = -1;
+				result.width = widthOfRect;
+				result.height = heightOfRect;
+				result.center = rotatedRect.center;
+				rotatedRect.points(result.boundingBox);
+				// Making sure that bounding box has points in order ie. bottom left[0], top left[1], top right[2], bottom right[3]
+				if(isRotatedRectNotInOrder)
+				{
+					cv::Point2f tempPoint = result.boundingBox[0];
+					result.boundingBox[0] = result.boundingBox[1];
+					result.boundingBox[1] = result.boundingBox[2];
+					result.boundingBox[2] = result.boundingBox[3];
+					result.boundingBox[3] = tempPoint;
+				}
+			}
+			else if(predictionNumber == 12)
+			{
+				isTurnSign = true;
+				result.signType = SIGN_TYPE::TURN_RIGHT;
+				result.value = -1;
+				result.width = widthOfRect;
+				result.height = heightOfRect;
+				result.center = rotatedRect.center;
+				rotatedRect.points(result.boundingBox);
+				// Making sure that bounding box has points in order ie. bottom left[0], top left[1], top right[2], bottom right[3]
+				if(isRotatedRectNotInOrder)
+				{
+					cv::Point2f tempPoint = result.boundingBox[0];
+					result.boundingBox[0] = result.boundingBox[1];
+					result.boundingBox[1] = result.boundingBox[2];
+					result.boundingBox[2] = result.boundingBox[3];
+					result.boundingBox[3] = tempPoint;
+				}
+			}
+		}
+		return isTurnSign;
+	}
+
+	bool DetectSignsOnLane::isContourASpeedEnd(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result)
+	{
+		bool isSpeedEndSign = false;
+		cv::RotatedRect rotatedRect = cv::minAreaRect(contour);
+		double angleOfRect = rotatedRect.angle;
+		cv::Size2f sizeOfRect = rotatedRect.size;
+		double heightOfRect = sizeOfRect.height;
+		double widthOfRect = sizeOfRect.width;
+		bool isRotatedRectNotInOrder = false;
+
+		if(widthOfRect > heightOfRect)
+		{
+			widthOfRect = sizeOfRect.height;
+			heightOfRect = sizeOfRect.width;
+			angleOfRect += 90;
+			isRotatedRectNotInOrder = true;
+		}
+
+		bool dimensionsCloserToSpeedEnd = false;
+		if((angleOfRect > -60) && (angleOfRect < 60))
+		{
+            dimensionsCloserToSpeedEnd = (widthOfRect >= SPEEDEND_SIGN_RECT_MIN_WIDTH);
+			dimensionsCloserToSpeedEnd = dimensionsCloserToSpeedEnd && (widthOfRect <= SPEEDEND_SIGN_RECT_MAX_WIDTH);
+            dimensionsCloserToSpeedEnd = dimensionsCloserToSpeedEnd && (heightOfRect >= SPEEDEND_SIGN_RECT_MIN_HEIGHT);
+			dimensionsCloserToSpeedEnd = dimensionsCloserToSpeedEnd && (heightOfRect <= SPEEDEND_SIGN_RECT_MAX_HEIGHT);
+		}
+
+		if(dimensionsCloserToSpeedEnd)
+		{
+			cv::Mat cropAndCompImage;
+			cv::Size croppingSize(SPEEDEND_CROPPING_WIDTH, SPEEDEND_CROPPING_HEIGHT);
+			cropAndCompressImage(rotatedRect, originalImage, cropAndCompImage, croppingSize);
+			int predictionNumber = predictSign(cropAndCompImage);
+
+			if(predictionNumber == 10)
+			{
+				isSpeedEndSign = true;
+				result.signType = SIGN_TYPE::END_OF_SPEED_LIMIT;
+				result.value = -1;
+				result.width = widthOfRect;
+				result.height = heightOfRect;
+				result.center = rotatedRect.center;
+				rotatedRect.points(result.boundingBox);
+				// Making sure that bounding box has points in order ie. bottom left[0], top left[1], top right[2], bottom right[3]
+				if(isRotatedRectNotInOrder)
+				{
+					cv::Point2f tempPoint = result.boundingBox[0];
+					result.boundingBox[0] = result.boundingBox[1];
+					result.boundingBox[1] = result.boundingBox[2];
+					result.boundingBox[2] = result.boundingBox[3];
+					result.boundingBox[3] = tempPoint;
+				}
+			}
+		}
+		return isSpeedEndSign;
 	}
 
 	void DetectSignsOnLane::constructHogObject()
@@ -145,46 +454,6 @@ namespace otto_car
         bool signedGradient = true;
         hog = new cv::HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins, derivAperture, winSigma, histogramNormType,
         				L2HysThreshold, gammaCorrection, nlevels, signedGradient);
-	}
-
-	bool DetectSignsOnLane::filterContorsForSigns(cv::RotatedRect &contourRect, cv::Size &cropRectForSize)
-	{
-		angleOfRect = contourRect.angle;
-		sizeOfRect = contourRect.size;
-		heightOfRect = sizeOfRect.height;
-		widthOfRect = sizeOfRect.width;
-
-		if(widthOfRect > heightOfRect)
-		{
-			widthOfRect = sizeOfRect.height;
-			heightOfRect = sizeOfRect.width;
-			angleOfRect += 90;
-		}
-
-		if((angleOfRect > -60) && (angleOfRect < 60))
-		{
-            isNumber = (widthOfRect >= NUMBER_SIGN_RECT_MIN_WIDTH) && (widthOfRect < NUMBER_SIGN_RECT_MAX_WIDTH);
-            isNumber = isNumber && ((heightOfRect >= NUMBER_SIGN_RECT_MIN_HEIGHT) && (heightOfRect < NUMBER_SIGN_RECT_MAX_HEIGHT));
-
-            isArrow = (widthOfRect >= ARROW_SIGN_RECT_MIN_WIDTH) && (widthOfRect < ARROW_SIGN_RECT_MAX_WIDTH);
-            isArrow = isArrow && ((heightOfRect >= ARROW_SIGN_RECT_MIN_HEIGHT) && (heightOfRect < ARROW_SIGN_RECT_MAX_HEIGHT));
-
-            isSpeedEnd = (widthOfRect >= SPEEDEND_SIGN_RECT_MIN_WIDTH) && (widthOfRect < SPEEDEND_SIGN_RECT_MAX_WIDTH);
-            isSpeedEnd = isSpeedEnd && ((heightOfRect >= SPEEDEND_SIGN_RECT_MIN_HEIGHT) && (heightOfRect < SPEEDEND_SIGN_RECT_MAX_HEIGHT));
-
-            if(isSpeedEnd)
-            {
-            	cropRectForSize = cv::Size(SPEEDEND_CROP_RECT_WIDTH, SPEEDEND_CROP_RECT_HEIGHT);
-            }
-            else
-            {
-            	cropRectForSize = cv::Size(OTHERSIGN_CROP_RECT_WIDTH, OTHERSIGN_CROP_RECT_HEIGHT);
-            }
-
-            return (isNumber || isArrow || isSpeedEnd);
-		}
-
-		return false;
 	}
 
 	float DetectSignsOnLane::findMinOrMaxInPoints(cv::Point2f points[], int sizeOfArray, AxisType axis, BoundaryType boundary)
@@ -213,63 +482,34 @@ namespace otto_car
 		return result;
 	}
 
-	void DetectSignsOnLane::preprocessBeforeSignDetection(cv::RotatedRect &contourRect, cv::Mat &image, cv::Mat &result,
-															 cv::Size &cropRectForSize)
+	void DetectSignsOnLane::cropAndCompressImage(const cv::RotatedRect &contourRect, const cv::Mat &originalImage,
+														  cv::Mat &resultImage, const cv::Size &cropRectForSize)
 	{
+		cv::Point2f pointsOfRectCorners[4];
 		contourRect.points(pointsOfRectCorners);
 		int sizeOfArray = (sizeof(pointsOfRectCorners)/sizeof(*pointsOfRectCorners));
-		minX = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::X, BoundaryType::MIN);
-		maxX = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::X, BoundaryType::MAX);
-		minY = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::Y, BoundaryType::MIN);
-		maxY = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::Y, BoundaryType::MAX);
-		int width = (multi * (maxX - minX));
-		int height = (multi * (maxY - minY));
-		size = cv::Size(multi * (maxX - minX), multi * (maxY - minY));
-		rotationMatrix2D = cv::getRotationMatrix2D(cv::Point2f(size.width/2, size.height/2), contourRect.angle, 1.0);
-		cv::getRectSubPix(image, size, contourRect.center, result);
-		cv::warpAffine(result, result, rotationMatrix2D, size);
-		cv::getRectSubPix(result, cropRectForSize, cv::Point2f(size.width/2, size.height/2), result);
-		cv::resize(result, result, cv::Size(RESIZE_WIDTH, RESIZE_HEIGHT));
-		cv::cvtColor(result, result, cv::COLOR_BGR2GRAY);
-		cv::GaussianBlur(result, result, cv::Size(BLUR_IMAGE_WIDTH, BLUR_IMAGE_HEIGHT), 0);
-		cv::threshold(result, result, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+		double multi = 1.3;
+		double minX = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::X, BoundaryType::MIN);
+		double maxX = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::X, BoundaryType::MAX);
+		double minY = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::Y, BoundaryType::MIN);
+		double maxY = findMinOrMaxInPoints(pointsOfRectCorners, sizeOfArray, AxisType::Y, BoundaryType::MAX);
+		cv::Size size(multi * (maxX - minX), multi * (maxY - minY));
+		cv::Mat rotationMatrix2D = cv::getRotationMatrix2D(cv::Point2f(size.width/2, size.height/2), contourRect.angle, 1.0);
+		cv::getRectSubPix(originalImage, size, contourRect.center, resultImage);
+		cv::warpAffine(resultImage, resultImage, rotationMatrix2D, size);
+		cv::getRectSubPix(resultImage, cropRectForSize, cv::Point2f(size.width/2, size.height/2), resultImage);
+		cv::resize(resultImage, resultImage, cv::Size(RESIZE_WIDTH, RESIZE_HEIGHT));
+		cv::cvtColor(resultImage, resultImage, cv::COLOR_BGR2GRAY);
+		cv::GaussianBlur(resultImage, resultImage, cv::Size(BLUR_IMAGE_WIDTH, BLUR_IMAGE_HEIGHT), 0);
+		cv::threshold(resultImage, resultImage, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 	}
 
-	void DetectSignsOnLane::predictSign(cv::Mat &image, cv::Mat &croppedImage, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect)
+	int DetectSignsOnLane::predictSign(const cv::Mat &croppedImage)
 	{
-		contoursToDraw.clear();
-		contoursToDraw.push_back(contour);
+		std::vector<float> descriptors;
 		hog->compute(croppedImage, descriptors);
-		predictionNumber = modelPtr->predict(descriptors);
-
-		if(predictionNumber >=0 && predictionNumber < 13)
-		{
-			cv::drawContours(image, contoursToDraw, 0, cv::Scalar(0,0,225), 2);
-		}
-
-		if(predictionNumber >= 0 && predictionNumber < 10)
-		{
-			cv::putText(image, std::to_string(predictionNumber), contourRect.center, cv::FONT_HERSHEY_DUPLEX, 0.9, 
-							CV_RGB(0, 255, 0), 1);
-		}
-		else if(predictionNumber >= 10 && predictionNumber < 13)
-		{
-			if(predictionNumber == 11)
-			{
-				labelString = "Turn left";
-			}
-			else if(predictionNumber == 12)
-			{
-				labelString = "Turn right";
-			}
-			else 
-			{
-				labelString = "Speed limit ends";
-			}
-			cv::putText(image, labelString, contourRect.center, cv::FONT_HERSHEY_DUPLEX, 0.9, 
-							CV_RGB(0, 255, 0), 1);
-		}
-		descriptors.clear();
+		int predictionNumber = modelPtr->predict(descriptors);
+		return predictionNumber;
 	}
 	
 	}

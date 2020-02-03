@@ -5,7 +5,8 @@
 using namespace otto_car::lane_markings;
 
 std::string nameOfLaneImage = "/perception/lane/debug/topview";
-std::string locationOfSvmDat;
+std::string locationOfSvmDat = "";
+bool isDebugMode = true;
 
 int parseCommandLineArguments(int argc, char** argv);
 
@@ -22,7 +23,7 @@ int main(int argc, char** argv)
 
 	std::string setDetectionFlagServiceName = "/set_sign_detection_on_lane_flag";
 	std::unique_ptr<DetectSignsOnLane> detection(new DetectSignsOnLane(nh, locationOfSvmDat, nameOfLaneImage, 
-													setDetectionFlagServiceName));
+													setDetectionFlagServiceName, isDebugMode));
 	detection->init();
 	while(ros::ok())
 	{
@@ -41,10 +42,24 @@ int parseCommandLineArguments(int argc, char** argv)
 			if( i + 1 < argc)
 			{
 				locationOfSvmDat = argv[i+1];
-				return 0;
+			}
+		}
+		else if(argumentValue == "--debug" || argumentValue == "-d")
+		{
+			if(i + 1 < argc)
+			{
+				std::string debugMode = argv[i+1];
+				if(debugMode == "true")
+				{
+					isDebugMode = true;
+				}
 			}
 		}
 	}
-	std::cout << "Please provide location of SVM model file" << std::endl;
-	return 1;
+	if(locationOfSvmDat == "")
+	{
+		std::cout << "Usage rosrun detect_signs_on_lane detect_signs_on_lane -m path/to/svm/file -d true/false(for debug mode)" << std::endl;
+		return 1;
+	}
+	return 0;
 }

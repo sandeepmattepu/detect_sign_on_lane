@@ -48,21 +48,26 @@ namespace otto_car
                 static constexpr float MAX_DISTANCE_BETWEEN_STRIPES = 64;
                 static constexpr int MIN_STRIPES_FOR_BARRED_AREA = 2;
 
-                float angleOfBarredArea = 0;
+                double angleOfBarredArea = 0;
+                double widthOfBarredArea = 0;
+                double heightOfBarredArea = 0;
                 // Order of stripes are from bottom to top i.e bottom most stripe is at stripes[0]
                 std::vector<std::shared_ptr<BarredAreaStripe>> stripes;
                 cv::Point center;
                 // Gives unit vector whose direction points from starting point towards ending point
                 void unitVector(const cv::Point2f &startingPoint, const cv::Point2f &endingPoint, cv::Point2f &unitVectorResult);
+                void calculateDimensionsOfBarredArea();
 
             public:
                 BarredArea();
                 static void clusterStripes(std::vector<std::shared_ptr<BarredAreaStripe>> &barredStripes, std::vector<std::shared_ptr<BarredArea>> &results);
                 bool mergeAnotherBarredAreaStripe(std::shared_ptr<BarredArea> &otherBarredArea);
                 void calculateCenter();
-                void getBarredAreaBox(std::array<cv::Point,4> &box);
-                void getActualBarredAreaBox(std::array<cv::Point,4> &box);
-                void getCenter(cv::Point &centerResult);
+                void getBarredAreaBox(std::array<cv::Point2f,4> &box);
+                void getActualBarredAreaBox(std::array<cv::Point2f,4> &box);
+                void getCenter(cv::Point2f &centerResult);
+                double getWidthOfBarredArea();
+                double getHeightOfBarredArea();
         };
     }
 }

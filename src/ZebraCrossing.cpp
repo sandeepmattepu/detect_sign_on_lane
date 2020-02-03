@@ -14,9 +14,10 @@ namespace otto_car
             calculateDimensionsOfZebraCrossing();
         }
 
-        bool ZebraCrossing::isRectZebraStripe(cv::RotatedRect &rotatedRect)
+        bool ZebraCrossing::isRectZebraStripe(const std::vector<cv::Point> &contour)
         {
             bool result = false;
+            cv::RotatedRect rotatedRect = cv::minAreaRect(contour);
             cv::Size2f sizeOfRect = rotatedRect.size;
             float heightOfRect = sizeOfRect.height;
             float widthOfRect = sizeOfRect.width;

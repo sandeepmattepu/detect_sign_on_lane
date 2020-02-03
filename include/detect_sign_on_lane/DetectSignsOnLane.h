@@ -16,6 +16,7 @@
 
 #include "ZebraCrossing.h"
 #include "BarredArea.h"
+#include "SignsOnLaneResult.h"
 
 namespace otto_car
 {
@@ -48,10 +49,17 @@ namespace otto_car
 				const float SPEEDEND_SIGN_RECT_MIN_HEIGHT = 130;
 				const float SPEEDEND_SIGN_RECT_MAX_HEIGHT = 145;
 
-				const float SPEEDEND_CROP_RECT_WIDTH = 65;
-				const float SPEEDEND_CROP_RECT_HEIGHT = 145;
-				const float OTHERSIGN_CROP_RECT_WIDTH = 30;
-				const float OTHERSIGN_CROP_RECT_HEIGHT = 120;
+				const float MIN_DISTANCE_SPEED_LIMIT_NUM = 25;
+				const float MAX_DISTANCE_SPEED_LIMIT_NUM = 35;
+
+				const float SPEEDEND_CROPPING_WIDTH = 65;
+				const float SPEEDEND_CROPPING_HEIGHT = 145;
+
+				const float NUMBER_SIGN_CROPPING_WIDHT = 30;
+				const float NUMBER_SIGN_CROPPING_HEIGHT = 120;
+
+				const float TURN_SIGN_CROPPING_WIDTH = 30;
+				const float TURN_SIGN_CROPPING_HEIGHT = 120;
 
 				const float RESIZE_WIDTH = 20;
 				const float RESIZE_HEIGHT = 20;
@@ -59,7 +67,9 @@ namespace otto_car
 				const float BLUR_IMAGE_WIDTH = 1;
 				const float BLUR_IMAGE_HEIGHT = 1;
 				
-				bool continueDetection = false;
+				bool continueDetection = true;
+				bool debugMode = true;
+				bool isDetectionUnderProgress = false;
 				std::string fullServiceName;
 				std::string nameOfInputImageTopic;
 				std::string locationOfDataFile;
@@ -76,64 +86,26 @@ namespace otto_car
 
 				cv::Ptr<cv::ml::SVM> modelPtr;
 
-				// Variables for detectSignsFromRawImage function
-				cv::Mat imageFromRaw;
-				cv::Mat greyImage;
-				cv::Mat thresholdImage;
-				std::vector<std::vector<cv::Point>> contours;
-    			std::vector<cv::Vec4i> hierarchy;
-    			cv::RotatedRect rotatedRect;
-    			bool isContourASign = false;
-				bool isContourAZebraStripe = false;
-				std::vector<std::shared_ptr<cv::RotatedRect>> orphanZebraStripes;
-				std::vector<std::shared_ptr<ZebraCrossing>> zebraCrossings;
-				std::vector<std::shared_ptr<BarredAreaStripe>> barredAreaStripes;
-				std::vector<std::shared_ptr<BarredArea>> barredAreas;
-				std::array<cv::Point2f,4> zebraCrossingBoundingBox;
-				std::array<cv::Point,4> barredAreaBoundingBox;
-				cv::Point2f centerOfZebraCrossing;
-				cv::Point centerOfBarredArea;
-    			cv::Mat boxPts;
-    			cv::Size cropRect;
-				cv::Mat croppedImage;
-				sensor_msgs::Image debugImage;
-				std::shared_ptr<cv_bridge::CvImage> tempCVImage;
-
-    			// Variables for filterContorsForSigns function
-    			cv::Size2f sizeOfRect;
-    			float heightOfRect;
-    			float widthOfRect;
-    			float angleOfRect;
-    			bool isArrow;
-    			bool isNumber;
-    			bool isSpeedEnd;
-				bool filterContorsForSigns(cv::RotatedRect &contourRect, cv::Size &cropRectForSize);
-
-				// Variables for preprocessBeforeSignDetection function
-				cv::Point2f pointsOfRectCorners[4];
-				float minX;
-				float maxX;
-				float minY;
-				float maxY;
-				float multi = 1.3;
-				cv::Point2f center;
-				cv::Size size;
-				cv::Mat rotationMatrix2D;
-				void preprocessBeforeSignDetection(cv::RotatedRect &contourRect, cv::Mat &image, cv::Mat &result, 
-														cv::Size &cropRectForSize);
+				void cropAndCompressImage(const cv::RotatedRect &contourRect, const cv::Mat &originalImage, cv::Mat &resultImage,
+										  const cv::Size &croppingSize);
 
 				float findMinOrMaxInPoints(cv::Point2f points[], int sizeOfArray, AxisType axis, BoundaryType boundary);
 
-				// Variables for predictSign function
-				std::vector<std::vector<cv::Point>> contoursToDraw;
-				std::vector<float> descriptors;
-				float predictionNumber;
-				std::string labelString;
-				void predictSign(cv::Mat &image, cv::Mat &croppedImage, std::vector<cv::Point> &contour, cv::RotatedRect &contourRect);
+				int predictSign(const cv::Mat &croppedImage);
+
+				bool isContourANumber(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result);
+				
+				bool isContourATurnSign(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result);
+				
+				bool isContourASpeedEnd(const cv::Mat &originalImage, const std::vector<cv::Point> &contour, SignsOnLaneResult &result);
+
+				void publishResultsForDebug(const cv::Mat &originalImage, const std::vector<SignsOnLaneResult> &resultsOnLane);
+
+				void mergeOrphanNumbers(const std::vector<SignsOnLaneResult> &orphanNumbers, std::vector<SignsOnLaneResult> &results);
 
 			public:
 				DetectSignsOnLane(ros::NodeHandle &nh, std::string locationOfDatFile, std::string nameOfRawImageTopic,
-										std::string setDetectionFlagServiceName);
+										std::string setDetectionFlagServiceName, bool isDebugMode = true);
 				bool setDetectionFlagServiceCallBack(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
 				void detectSignsFromRawImage(const sensor_msgs::Image &image);
 				void init();
