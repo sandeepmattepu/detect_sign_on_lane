@@ -50,7 +50,7 @@ namespace otto_car
 				const float SPEEDEND_SIGN_RECT_MIN_HEIGHT = 130;
 				const float SPEEDEND_SIGN_RECT_MAX_HEIGHT = 145;
 
-				const float MIN_DISTANCE_SPEED_LIMIT_NUM = 25;
+				const float MIN_DISTANCE_SPEED_LIMIT_NUM = 15;
 				const float MAX_DISTANCE_SPEED_LIMIT_NUM = 35;
 
 				const float PEDESTRIAN_ISLAND_MIN_HEIGHT = 88;
@@ -60,7 +60,7 @@ namespace otto_car
 
 				const float CROPPING_HEIGHT_PEDESTRIAN_ISLAND = 250;
 
-				const float SPEEDEND_CROPPING_WIDTH = 65;
+				const float SPEEDEND_CROPPING_WIDTH = 55;
 				const float SPEEDEND_CROPPING_HEIGHT = 145;
 
 				const float NUMBER_SIGN_CROPPING_WIDHT = 30;

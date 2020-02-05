@@ -264,7 +264,6 @@ namespace otto_car
 		double heightOfRect = sizeOfRect.height;
 		double widthOfRect = sizeOfRect.width;
 		bool isRotatedRectNotInOrder = false;
-
 		if(widthOfRect > heightOfRect)
 		{
 			widthOfRect = sizeOfRect.height;
@@ -277,9 +276,9 @@ namespace otto_car
 		if((angleOfRect > -60) && (angleOfRect < 60))
 		{
             hasDimensionsCloserToNumber = (widthOfRect >= NUMBER_SIGN_RECT_MIN_WIDTH);
-			hasDimensionsCloserToNumber = hasDimensionsCloserToNumber && (widthOfRect <= NUMBER_SIGN_RECT_MAX_WIDTH);
-            hasDimensionsCloserToNumber = hasDimensionsCloserToNumber && (heightOfRect >= NUMBER_SIGN_RECT_MIN_HEIGHT);
-			hasDimensionsCloserToNumber = hasDimensionsCloserToNumber && (heightOfRect <= NUMBER_SIGN_RECT_MAX_HEIGHT);
+			hasDimensionsCloserToNumber = hasDimensionsCloserToNumber && (widthOfRect <= NUMBER_SIGN_RECT_MAX_WIDTH)
+             && (heightOfRect >= NUMBER_SIGN_RECT_MIN_HEIGHT)
+			 && (heightOfRect <= NUMBER_SIGN_RECT_MAX_HEIGHT);
 		}
 
 		if(hasDimensionsCloserToNumber)
@@ -288,7 +287,6 @@ namespace otto_car
 			cv::Size croppingSize(NUMBER_SIGN_CROPPING_WIDHT, NUMBER_SIGN_CROPPING_HEIGHT);
 			cropAndCompressImage(rotatedRect, originalImage, cropAndCompImage, croppingSize);
 			int predictionNumber = predictSign(cropAndCompImage);
-
 			if(predictionNumber >= 0 && predictionNumber < 10)
 			{
 				isNumber = true;
@@ -486,10 +484,20 @@ namespace otto_car
 			}
 			cropBoxDimensions.x = topCornerOfCroppingBox.x;
 			cropBoxDimensions.y = topCornerOfCroppingBox.y;
-			cv::Mat croppedImage(rotatedImage, cropBoxDimensions);
-			cv::resize(croppedImage, croppedImage, cv::Size(RESIZE_WIDTH, RESIZE_HEIGHT));
-			cv::threshold(croppedImage, croppedImage, 90, 225, cv::THRESH_BINARY);
-			int predictedNumber = predictSign(croppedImage);
+			int predictedNumber = 0;
+			try
+			{
+				cv::Mat croppedImage(rotatedImage, cropBoxDimensions);
+				cv::resize(croppedImage, croppedImage, cv::Size(RESIZE_WIDTH, RESIZE_HEIGHT));
+				cv::threshold(croppedImage, croppedImage, 90, 225, cv::THRESH_BINARY);
+				predictedNumber = predictSign(croppedImage);
+			}
+			catch(const std::exception& e)
+			{
+				//std::clog << e.what() << '\n';
+			}
+			
+			
 			isPedestrianIsland = (predictedNumber == 15);
 			if(isPedestrianIsland)
 			{
