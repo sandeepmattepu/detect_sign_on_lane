@@ -212,8 +212,8 @@ namespace otto_car
             float yComponent = (boundingBox[0].y - boundingBox[3].y) * (boundingBox[0].y - boundingBox[3].y);
             widthOfZebraCrossing = sqrt(xComponent + yComponent);
 
-            xComponent = (boundingBox[1].x - boundingBox[2].x) * (boundingBox[1].x - boundingBox[2].x);
-            yComponent = (boundingBox[1].y - boundingBox[2].y) * (boundingBox[1].y - boundingBox[2].y);
+            xComponent = (boundingBox[0].x - boundingBox[1].x) * (boundingBox[0].x - boundingBox[1].x);
+            yComponent = (boundingBox[0].y - boundingBox[1].y) * (boundingBox[0].y - boundingBox[1].y);
             heightOfZebraCrossing = sqrt(xComponent + yComponent);
         }
 
