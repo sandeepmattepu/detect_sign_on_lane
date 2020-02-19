@@ -19,9 +19,9 @@ namespace otto_car
 	{
 		setDetectionFlagService = nodeHandle->advertiseService(fullServiceName, &DetectSignsOnLane::setDetectionFlagServiceCallBack, this);
 		subscriber = nodeHandle->subscribe(nameOfInputImageTopic, 40, &DetectSignsOnLane::detectSignsFromRawImage, this);
-		std::string resultsTopicName = ros::this_node::getName() + "/sign_results";
+		std::string resultsTopicName = ros::this_node::getName() + nameOfResultsTopic;
 		signResultsPublisher = nodeHandle->advertise<detect_sign_on_lane::SignsOnLaneMsg>(resultsTopicName, 50);
-		std::string fullDebugResultName = ros::this_node::getName() + "/debug_result_image";
+		std::string fullDebugResultName = ros::this_node::getName() + nameOfDebugResultsTopic;
 		if(debugMode)
 		{
 			debugImageResultPublisher = nodeHandle->advertise<sensor_msgs::Image>(fullDebugResultName, 50);

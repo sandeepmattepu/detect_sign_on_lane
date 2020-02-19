@@ -137,6 +137,10 @@ namespace otto_car
 				std::string fullServiceName;
 				//! Name of the topic which is top view of the lane.
 				std::string nameOfInputImageTopic;
+				//! Name of the topic under which the results of detection are published. Note that the actual name of the topic will be "name of the node + this constant value"
+				const std::string nameOfResultsTopic = "/sign_results";
+				//! Name of the topic under which the results of detection which are drawn on a image are published. Note that the actual name of the topic will be "name of the node + this constant value"
+				const std::string nameOfDebugResultsTopic = "/debug_result_image";
 				//! Location of the trained svm model file.
 				std::string locationOfDataFile;
 				
