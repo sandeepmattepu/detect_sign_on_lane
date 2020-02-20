@@ -1,0 +1,50 @@
+\documentclass[12pt, a4paper]{report}
+\usepackage[utf8]{inputenc}
+%\usepackage{showframe}
+\usepackage[top=2cm, bottom=2cm, left=3cm, right=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\graphicspath{{images/}}
+\usepackage{hyperref}
+\usepackage{wrapfig}
+\usepackage{array}
+\newcommand{\shellcmd}[1]{\\\indent\indent\texttt{\small\# #1}\\}
+
+\title{{Documentation of \\\textbf{``Detecting advanced lane features''} \\project}\\
+\vspace{1cm}
+{\includegraphics{ottocar.png}}}
+\author{Sandeep Yadav Mattepu, Tony John}
+\date{February 2020}
+
+\begin{document}
+
+\maketitle
+\listoffigures
+\tableofcontents
+
+\chapter*{Preface}
+\input{Chapters/Preface}
+\addcontentsline{toc}{chapter}{\protect\numberline{}Preface}
+
+\chapter{Compiling and running the project}
+\input{Chapters/CompilingAndUsage}
+
+\chapter{Detection of single contour signs}
+\input{Chapters/SingleContourSigns}
+
+\chapter{Training the classifier}
+\label{chap:TrainingClassifier}
+\input{Chapters/TrainingClassifier}
+
+\chapter{Detection of multi contour signs}
+\label{chap:MultiContour}
+\input{Chapters/MultiContourSign}
+
+\chapter{Publish results}
+\label{chap:PublishResults}
+\input{Chapters/PublishResults}
+
+\chapter{Miscellaneous tools}
+\input{Chapters/MiscellaneousTools}
+
+\end{document}

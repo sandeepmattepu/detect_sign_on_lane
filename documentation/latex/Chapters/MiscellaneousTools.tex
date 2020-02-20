@@ -1,0 +1,30 @@
+\section{Introduction}
+This project comes with two additional tools to make it easier to change the code and document the code.
+
+\section{Contour inspector}
+In \autoref{table:SingleContourDimensionConstraint}, \autoref{sec:ZebraCrossingStripeChecking} and \autoref{sec:BarredAreaStripeChecking} the detection of the signs are dependent on the constant values. These values need to be changed if the camera's properties are changed(like angle, distance, etc.). Whenever camera's properties are changed you can use \emph{inspect\_contour} node to inspect contours for their dimension values.
+
+\subsection{Starting the contour inspector}
+To start the contour make sure that \emph{roscore} and the node which publishes the topic that needs to be inspected are running. After compiling the project as discussed in \autoref{sec:Compiling} enter the following command in the terminal:
+\shellcmd{rosrun detect\_sign\_on\_lane inspect\_contours /topic/name/to/inspect}
+
+Tool \emph{inspect\_contour} provides following functionalities:
+\begin{itemize}
+    \item Measure height, width and angle of \href{https://docs.opencv.org/3.4.3/db/dd6/classcv_1_1RotatedRect.html}{\emph{cv::RotatedRect}} of the contour.
+    \item Distance between the contours.
+    \item Length of each side of barred area stripe and all the angles of the barred area stripe.
+\end{itemize}
+
+\section{Doxyfile generator}
+If you modified the code of the project, you may want to regenerate the API code as html. To do this you need to install \href{http://www.doxygen.nl/index.html}{\emph{doxygen}} and have a Doxyfile. Please follow instructions mentioned in \href{http://www.doxygen.nl/manual/install.html}{http://www.doxygen.nl/manual/install.html} to install doxygen. For the Doxyfile, navigate the terminal to the location where DoxyFileGenerator is present. This is present in detect\_sign\_on\_lane/doc-umentation/doxygen/DoxyFileGenerator/bin folder. This binary requires four arguments
+\begin{itemize}
+    \item Full path to the project's location in the system.
+    \item Full path where you want html files to save.
+    \item Full path where Doxyfile\_Template is present. This is present in detect\_sign\_on\_lane/doc-umentation/doxygen/DoxyFileGen-erator/Doxyfile\_Template
+    \item Full path where you want DoxyFile to be saved.
+\end{itemize}
+Example :
+\shellcmd{~/ros\_ws/src/detect\_sign\_on\_lane/documentation/doxygen/DoxyFileGenerator/b-\\\indent\indent\texttt{\small in/DoxyFileGenerator ~/ros\_ws/src/detect\_sign\_on\_lane/ ~/Desktop/Html/}\\ \indent\indent\texttt{\small ~/ros\_ws/src/detect\_sign\_on\_lane/documentation/doxygen/DoxyFileGenerator/Doxy-}\\\indent\indent\texttt{\small file\_Template ~/Desktop/}}
+
+Once the Doxyfile is produced, you can now generate the html API documentation by:
+\shellcmd{doxygen /path/to/new/Doxyfile}

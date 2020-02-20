@@ -1,0 +1,45 @@
+\section{Introduction}
+In the previously discussed sections(i.e. \autoref{sec:SingleContStoreResults}, \autoref{sec:ZebraCrossStoreResults}, \autoref{sec:BarredAreaStoreResults}) we have stored the results in a list for publishing them later. This chapter discusses about how results are published.
+
+\section{Publishing results through topic}
+The results of detection are published to other nodes through topic Publishing of the results happen in \emph{DetectSignsOnLane::publishR-esults()} function. The name of the topic will be determined by \emph{DetectSignsOnLane::nameOfResultsTopic} constant value. Debug image topic can also published by \emph{DetectSignsOnLane::publishRe-sultsForDebug()} function under the topic name which will be determined by \emph{DetectSignsOnLane::nameOfDebugResultsTopic} constant value.
+
+\section{Data structure of results topic}
+\subsection{Data structure of \emph{SignOnLaneMsg} msg}
+\label{sec:DataStructureSignOnLane}
+Constants that determine the sign type:
+\begin{itemize}
+    \item \emph{{\small uint8 SIGNTYPE\_SPEED\_LIMIT = 0}}
+    \item \emph{{\small uint8 SIGNTYPE\_SPEED\_LIMIT\_END = 0}}
+    \item \emph{{\small uint8 SIGNTYPE\_TURN\_LEFT = 0}}
+    \item \emph{{\small uint8 SIGNTYPE\_TURN\_RIGHT = 0}}
+    \item \emph{{\small uint8 SIGNTYPE\_ZEBRA\_CROSSING = 0}}
+    \item \emph{{\small uint8 SIGNTYPE\_BARRED\_AREA = 0}}
+    \item \emph{{\small uint8 SIGNTYPE\_PEDESTRIAN\_ISLAND = 0}}
+\end{itemize}
+
+Following are the variables that holds some information of the sign:
+\begin{table}[h!]
+\centering
+\begin{tabular}{ | m{3cm} | p{12cm} | } 
+\hline
+\textbf{\emph{signType}} & This holds value that describes the sign type based on above constants\\ 
+\hline
+\textbf{\emph{value}} & This holds speed limit value. For rest of the signs it's value will be -1\\ 
+\hline
+\textbf{\emph{width}} & Width of the sign\\ 
+\hline
+\textbf{\emph{height}} & Height of the sign\\
+\hline
+\textbf{\emph{boundingBox}} & List of 4 points that surrounds the sign\\
+\hline
+\end{tabular}
+\caption{Data structure of results msg}
+\label{table:ResultDataStructure}
+\end{table}
+
+\subsection{Data structure of \emph{SignsOnLaneMsg} msg}
+This message type simply holds array of \hyperlink{sec:DataStructureSignOnLane}{\emph{SignOnLaneMsg}} type
+\begin{itemize}
+    \item \emph{SignOnLaneMsg}[] results
+\end{itemize}

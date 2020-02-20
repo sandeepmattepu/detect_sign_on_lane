@@ -1,0 +1,32 @@
+\section{Compiling the project}
+\label{sec:Compiling}
+Copy the source code(i.e \emph{detect\_sign\_on\_lane}) folder and paste it inside \emph{src} folder of your ros workspace. This project requires other packages to compile. Following are the list of packages that it requires:
+\begin{itemize}
+    \item roscpp
+    \item std\_msgs
+    \item std\_srvs
+    \item cv\_bridge
+    \item sensor\_msgs
+    \item message\_generation
+    \item ottocar\_msgs(Custom package created by oTTo car team)
+    \newline
+\end{itemize}
+
+If you do not have any of the above mentioned package(except \emph{ottocar\_msgs}) install them by opening the terminal and typing the following command.
+\shellcmd{rosdep install detect\_sign\_on\_lane}
+For \emph{ottocar\_msgs} package, you need to get it from oTTo car team.
+\newline
+
+Once you have all the package installed in your system it's time to compile the project. Navigate your terminal to ros workspace folder and enter following command.
+\shellcmd{catkin\_make}
+
+\section{Running the project}
+To run the project you have to enter the command in the terminal in the following format(Make sure \emph{roscore} is running before running following command):
+\shellcmd{rosrun detect\_sign\_on\_lane detect\_sign\_on\_lane -m [Location of svm file]} \indent\indent\indent\texttt{\small{-d [Debug mode]}}
+\begin{itemize}
+    \item\textbf{Location of svm file :} This file is in /path/to/your/ros\_wor-kspace/devel/lib/detect\_sign\_on\_lane folder and file is svm\_dat-a.dat
+    \item \textbf{Debug mode :} Boolean value instructing whether to run in debug mode or not. If you want to visualize the results of detection then set this value to true otherwise set it to false. When set to true there will be another topic with name \emph{/detect\_sign\_on\_lane/debu-g\_result\_image} which will publish the top view of lane with detection results drawn on them.
+\end{itemize}
+
+\textbf{Example : } If you wanted to run the project in non-debug mode then the command would be
+\shellcmd{rosrun detect\_sign\_on\_lane detect\_sign\_on\_lane -m $\sim$/ros\_ws/devel/lib/}\indent\indent\indent\texttt{\small detect\_sign\_on\_lane/svm\_data.dat -d false}
