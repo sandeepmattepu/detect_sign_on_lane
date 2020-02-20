@@ -142,6 +142,8 @@ add_executable(detect_sign_on_lane
 				src/BarredArea.cpp)
 add_dependencies(detect_sign_on_lane ${catkin_EXPORTED_TARGETS})
 
+add_executable(inspect_contours src/InspectContoursMain.cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -154,6 +156,7 @@ add_dependencies(detect_sign_on_lane ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(detect_sign_on_lane ${catkin_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(inspect_contours ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 file(COPY model/svm_data.dat DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 

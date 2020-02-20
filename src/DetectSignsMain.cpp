@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	ros::init(argc, argv, "detect_signs_on_lane");
+	ros::init(argc, argv, "detect_sign_on_lane");
 	ros::NodeHandle nh;
 	ROS_INFO("detect_signs_on_lane node started");
 
